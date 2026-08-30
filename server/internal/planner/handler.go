@@ -54,9 +54,10 @@ func (h *Handler) HandleProcessMission() gin.HandlerFunc {
 			if !ok {
 				return false
 			}
+
+			// Don't return to show the client 'failed' progress status
 			if r.Error != nil {
 				logger.L().Error(r.Error)
-				return false
 			}
 
 			eventData := gin.H{

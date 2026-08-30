@@ -47,15 +47,3 @@ func (r *MissionRepo) ValidateOwnership(ctx context.Context, missionId int64, ac
 	}
 	return result, nil
 }
-
-func (r *MissionRepo) UpdateMissionStatus(ctx context.Context, missionId int64, status planner.MissionStatus) error {
-	_, err := r.m.GetExecutor(ctx).Exec(ctx, `
-		update
-		application.missions
-		set
-		status = $1
-		where
-		mission_id = $2
-		`, status, missionId)
-	return err
-}

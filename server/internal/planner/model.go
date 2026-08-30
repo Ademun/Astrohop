@@ -45,14 +45,6 @@ const (
 	ObjectiveStatusInvisible ObjectiveStatus = "Invisible"
 )
 
-type MissionStatus string
-
-const (
-	MissionStatusDraft  MissionStatus = "draft"
-	MissionStatusDone   MissionStatus = "done"
-	MissionStatusFailed MissionStatus = "failed"
-)
-
 type taskProgress string
 
 const (
