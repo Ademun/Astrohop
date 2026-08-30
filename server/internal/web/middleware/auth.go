@@ -41,6 +41,7 @@ func NewAuth(
 
 		if !valid {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid access token"})
+			return
 		}
 
 		c.Set("mission_id", missionId)

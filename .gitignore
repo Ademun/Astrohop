@@ -3,3 +3,4 @@ client
 .env
 docker-compose.yml
 .venv
+repomix-output.xml
