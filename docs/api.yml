@@ -1,0 +1,167 @@
+openapi: 3.0.4
+info:
+  title: API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+paths:
+  /search/objects:
+    get:
+      summary: Search objects by name
+      parameters:
+        - name: name
+          description: Object catalog identifier
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    oid:
+                      type: integer
+                      description: Object identifier
+                    name:
+                      type: string
+                      description: Object catalog name
+                    type:
+                      type: string
+                      description: Object type
+  /missions:
+    post:
+      summary: Create mission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                location:
+                  type: object
+                  properties:
+                    lat:
+                      type: number
+                      description: Latitude
+                    long:
+                      type: number
+                      description: Longitude
+                  required:
+                    - lat
+                    - long
+                  description: Point of observation
+                time:
+                  type: string
+                  description: Time of observation
+                objectives:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      oid:
+                        type: integer
+                        description: Object identifier
+                      name:
+                        type: string
+                        description: Selected object catalog identifier
+                  description: Mission objectives
+                conditions:
+                  type: object
+                  properties:
+                    limiting_magnitude:
+                      type: number
+                      description: Maximum observable stellar magnitude
+                  description: Mission conditions
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mission_id:
+                    type: number
+                    description: Mission identifier
+                  objectives:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          description: Selected object catalog identifier
+                        apparent_magnitude:
+                          type: number
+                          description: Object apparent stellar magnitude during observation
+                        status:
+                          type: string
+                          description: Object status during observation (Visible, Dim, Invisible)
+                    description: Validated mission objectives
+          headers:
+            X-Access-Token:
+              schema:
+                type: string
+              description: Mission access token used for further operations
+  /missions/{id}/process:
+    post:
+      summary: Process mission
+      parameters:
+        - name: id
+          description: Mission identifier
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: X-Access-Token
+          description: Mission access token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            text/event-stream:
+              schema:
+                type: object
+                properties:
+                  progress:
+                    type: string
+                    description: Processing stage
+                  payload:
+                    type: string
+                    description: Processing payload (mission map)
+  /missions/{id}/map:
+    post:
+      summary: Get mission map
+      parameters:
+        - name: id
+          description: Mission identifier
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: X-Access-Token
+          description: Mission access token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            image/svg+xml:
+              schema:
+                type: string
+                format: binary
+

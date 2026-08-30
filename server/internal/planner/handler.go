@@ -52,19 +52,20 @@ func (h *Handler) HandleProcessMission() gin.HandlerFunc {
 		c.Stream(func(w io.Writer) bool {
 			r, ok := <-result
 			if !ok {
-				c.SSEvent("close", gin.H{"message": "completed"})
 				return false
-			}
-			eventData := gin.H{
-				"progress": r.Progress,
 			}
 			if r.Error != nil {
 				logger.L().Error(r.Error)
+				return false
 			}
 
+			eventData := gin.H{
+				"progress": r.Progress,
+			}
 			if len(r.Payload) > 0 {
 				eventData["payload"] = base64.StdEncoding.EncodeToString(r.Payload)
 			}
+
 			c.SSEvent("message", eventData)
 			return true
 		})
