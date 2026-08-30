@@ -8,7 +8,11 @@ import (
 
 var load = sync.OnceValue(func() *zap.SugaredLogger {
 	log, _ := zap.NewDevelopment()
-	defer log.Sync()
+	defer func() {
+		if err := log.Sync(); err != nil {
+			panic(err)
+		}
+	}()
 	return log.Sugar()
 })
 
