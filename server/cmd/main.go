@@ -30,11 +30,21 @@ func main() {
 		log.Fatal(fmt.Errorf("failed to initialize infrastructure: %w", err))
 	}
 
-	h := initHandlers(ctx, infra)
+	searchRepo := postgres.NewSearchRepo(infra.manager)
+	searchSvc := search.NewService(searchRepo)
+	searchHandler := search.NewHandler(searchSvc)
+	missionRepo := postgres.NewMissionRepo(infra.manager)
+	contentSvc := content.NewService(infra.minioClient)
+	contentHandler := content.NewHandler(contentSvc)
+	plannerSvc := planner.NewService(missionRepo, searchSvc, contentSvc, infra.minioClient)
+	plannerSvc.Start(ctx)
+	plannerHandler := planner.NewHandler(plannerSvc)
+
 	server := web.NewServer(
-		h.searchHandler,
-		h.plannerHandler,
-		h.contentHandler,
+		missionRepo,
+		searchHandler,
+		plannerHandler,
+		contentHandler,
 	)
 
 	select {
@@ -76,24 +86,4 @@ func initInfra(ctx context.Context) (*infrastructure, error) {
 	}
 	infra.minioClient = minioClient
 	return &infra, nil
-}
-
-type handlers struct {
-	searchHandler  *search.Handler
-	plannerHandler *planner.Handler
-	contentHandler *content.Handler
-}
-
-func initHandlers(ctx context.Context, infra *infrastructure) *handlers {
-	var h handlers
-	searchRepo := postgres.NewSearchRepo(infra.manager)
-	searchSvc := search.NewService(searchRepo)
-	h.searchHandler = search.NewHandler(searchSvc)
-	missionRepo := postgres.NewMissionRepo(infra.manager)
-	contentSvc := content.NewService(infra.minioClient)
-	h.contentHandler = content.NewHandler(contentSvc)
-	plannerSvc := planner.NewService(missionRepo, searchSvc, contentSvc, infra.minioClient)
-	plannerSvc.Start(ctx)
-	h.plannerHandler = planner.NewHandler(plannerSvc)
-	return &h
 }

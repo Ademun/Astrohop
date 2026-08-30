@@ -4,10 +4,8 @@ import (
 	"astrohop/pkg/apperr"
 	"astrohop/pkg/logger"
 	"encoding/base64"
-	"errors"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -40,21 +38,8 @@ func (h *Handler) HandlePreviewMission() gin.HandlerFunc {
 
 func (h *Handler) HandleProcessMission() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		missionIdStr := c.Param("id")
-		if missionIdStr == "" {
-			apperr.HandleHttp(c, apperr.New(http.StatusUnprocessableEntity, "id is required", errors.New("id is required")))
-			return
-		}
-		missionId, err := strconv.Atoi(missionIdStr)
-		if err != nil {
-			apperr.HandleHttp(c, apperr.New(http.StatusUnprocessableEntity, "id is invalid", err))
-		}
-		accessToken := c.GetHeader("X-Access-Token")
-		if accessToken == "" {
-			apperr.HandleHttp(c, apperr.New(http.StatusUnauthorized, "access_token is required", errors.New("access_token is required")))
-			return
-		}
-		result, err := h.svc.ProcessMission(c.Request.Context(), int64(missionId), accessToken)
+		missionId := c.GetInt64("mission_id")
+		result, err := h.svc.ProcessMission(missionId)
 		if err != nil {
 			apperr.HandleHttp(c, err)
 			return
@@ -64,7 +49,6 @@ func (h *Handler) HandleProcessMission() gin.HandlerFunc {
 		c.Header("Cache-Control", "no-cache")
 		c.Header("Connection", "keep-alive")
 		c.Header("Transfer-Encoding", "chunked")
-
 		c.Stream(func(w io.Writer) bool {
 			r, ok := <-result
 			if !ok {

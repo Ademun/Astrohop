@@ -22,7 +22,6 @@ import (
 type MissionRepo interface {
 	CreateNewMission(ctx context.Context, mission *MissionInfo, accessToken string) (int64, error)
 	GetMission(ctx context.Context, missionId int64) (*Mission, error)
-	ValidateOwnership(ctx context.Context, missionId int64, accessToken string) (bool, error)
 }
 
 type Service struct {
@@ -73,15 +72,7 @@ func (s *Service) PreviewMission(ctx context.Context, m MissionInfo) (*MissionVa
 	return validation, token, nil
 }
 
-func (s *Service) ProcessMission(ctx context.Context, missionId int64, accessToken string) (chan taskResult, error) {
-	ok, err := s.missionRepo.ValidateOwnership(ctx, missionId, accessToken)
-	if err != nil {
-		return nil, apperr.New(http.StatusInternalServerError, "failed to validate mission ownership", err)
-	}
-	if !ok {
-		return nil, apperr.New(http.StatusForbidden, "mission owner is invalid", nil)
-	}
-
+func (s *Service) ProcessMission(missionId int64) (chan taskResult, error) {
 	task := missionTask{
 		MissionID: missionId,
 		Result:    make(chan taskResult),

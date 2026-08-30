@@ -4,6 +4,7 @@ import (
 	"astrohop/pkg/logger"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,5 +31,7 @@ func HandleHttp(c *gin.Context, err error) {
 	}
 	if e, ok := errors.AsType[*Err](err); ok {
 		c.AbortWithStatusJSON(e.Code, gin.H{"error": e.Msg})
+		return
 	}
+	c.AbortWithStatus(http.StatusInternalServerError)
 }

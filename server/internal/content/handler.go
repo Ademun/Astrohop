@@ -2,9 +2,7 @@ package content
 
 import (
 	"astrohop/pkg/apperr"
-	"errors"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,25 +17,12 @@ func NewHandler(svc *Service) *Handler {
 
 func (h *Handler) HandleGetMissionMap() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		missionIDStr := c.Param("id")
-		missionID, err := strconv.Atoi(missionIDStr)
-		if err != nil {
-			apperr.HandleHttp(c,
-				apperr.New(
-					http.StatusUnprocessableEntity,
-					"invalid mission id param",
-					errors.New("invalid mission id param"),
-				),
-			)
-			return
-		}
-
-		mmap, size, err := h.svc.GetMissionMap(c.Request.Context(), int64(missionID))
+		missionId := c.GetInt64("mission_id")
+		mmap, size, err := h.svc.GetMissionMap(c.Request.Context(), missionId)
 		if err != nil {
 			apperr.HandleHttp(c, err)
 			return
 		}
-
 		c.DataFromReader(http.StatusOK, size, "image/svg+xml", mmap, map[string]string{
 			"Content-Encoding": "gzip",
 		})
