@@ -44,6 +44,6 @@ func NewAuth(
 			return
 		}
 
-		c.Set("mission_id", missionId)
+		c.Set("mission_id", int64(missionId))
 	}
 }

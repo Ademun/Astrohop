@@ -6,6 +6,7 @@ import (
 	"astrohop/internal/content"
 	"astrohop/internal/plotter"
 	"astrohop/internal/search"
+	"astrohop/pkg/algo"
 	"astrohop/pkg/apperr"
 	"bytes"
 	"compress/gzip"
@@ -109,7 +110,8 @@ func (s *Service) missionTaskWorker(ctx context.Context) {
 					Progress: taskFetchingData,
 				}
 				objectives := mission.Info.Objectives
-				nodes := make([]node, len(objectives))
+
+				coords := make(map[int]coordinates.Equatorial)
 				for i, obj := range objectives {
 					sd, err := s.searchSvc.GetObjectStellarData(ctx, obj.OID)
 					if err != nil {
@@ -119,34 +121,34 @@ func (s *Service) missionTaskWorker(ctx context.Context) {
 						}
 						return
 					}
-					nodes[i] = node{
-						Pos: sd.EqCoords,
+					coords[i] = sd.EqCoords
+				}
+
+				distanceMtrx := make([][]float64, len(objectives))
+				for i := range objectives {
+					distanceMtrx[i] = make([]float64, len(objectives))
+					for j := range objectives {
+						if i == j {
+							continue
+						}
+						dist := coordinates.DistanceEq(coords[i], coords[j])
+						distanceMtrx[i][j] = dist
 					}
 				}
 				task.Result <- taskResult{
 					Progress: taskBuildingRoute,
 				}
-				graph := useFarthestInsertion(nodes)
-				lst := atime.GetLocalSidereal(mission.Info.Location, mission.Info.Time)
-				objectList := &plotter.ObjectList{
-					Label:  objectives[0].Name,
-					Coords: nodes[0].Pos.ToHorizontal(lst, mission.Info.Location.Lat),
-					Dist:   graph.Distance,
-				}
-				currentList := objectList
-				next := graph.Next
-				for next.Id != 0 {
-					nextList := &plotter.ObjectList{
-						Label:  objectives[next.Id].Name,
-						Coords: nodes[next.Id].Pos.ToHorizontal(lst, mission.Info.Location.Lat),
-						Dist:   next.Distance,
-					}
-					currentList.Next = nextList
-					currentList = nextList
-					next = next.Next
-				}
+				tour := algo.UseFarthestInsertion(distanceMtrx)
 
-				plotData := plotter.ChartData{
+				lst := atime.GetLocalSidereal(mission.Info.Location, mission.Info.Time)
+				chartObjects := make([]plotter.Object, len(objectives))
+				for i, obj := range objectives {
+					chartObjects[i] = plotter.Object{
+						Label:  obj.Name,
+						Coords: coords[i].ToHorizontal(lst, mission.Info.Location.Lat),
+					}
+				}
+				plotData := &plotter.ChartData{
 					Title:    "ASTROHOP",
 					Location: mission.Info.Location,
 					Time:     mission.Info.Time,
@@ -155,8 +157,8 @@ func (s *Service) missionTaskWorker(ctx context.Context) {
 						Equipment:         "Binoculars 10x50",
 						LimitingMagnitude: 6.0,
 					},
-					Objects:     objectList,
-					ObjectCount: len(objectives),
+					Objects:     chartObjects,
+					Tour:        tour,
 					AngularTips: plotter.DefaultAngularTips(),
 					ArmNote:     "* Extend your arm as far as possible",
 					Legend:      plotter.DefaultLegend(),

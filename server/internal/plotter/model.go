@@ -1,6 +1,7 @@
 package plotter
 
 import (
+	"astrohop/pkg/algo"
 	"time"
 
 	"astrohop/internal/astronomy/coordinates"
@@ -111,8 +112,8 @@ type ChartData struct {
 	Location    coordinates.GeoLocation
 	Time        time.Time
 	Conditions  ChartConditions
-	Objects     *ObjectList
-	ObjectCount int
+	Objects     []Object
+	Tour        *algo.Tour
 	AngularTips []string
 	ArmNote     string
 	Legend      []LegendItem
@@ -124,10 +125,8 @@ type ChartConditions struct {
 	LimitingMagnitude float32
 }
 
-type ObjectList struct {
+type Object struct {
 	Label  string
-	Next   *ObjectList
-	Dist   float64
 	Coords coordinates.Horizontal
 }
 

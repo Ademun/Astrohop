@@ -16,7 +16,7 @@ type SvgPlotter struct {
 
 const labelPad = 22
 
-func (p *SvgPlotter) PlotAzimuth(out io.Writer, o Options, data ChartData) {
+func (p *SvgPlotter) PlotAzimuth(out io.Writer, o Options, data *ChartData) {
 	canvas := svg.New(out)
 	canvas.Start(o.Size.Width, o.Size.Height)
 
@@ -27,7 +27,7 @@ func (p *SvgPlotter) PlotAzimuth(out io.Writer, o Options, data ChartData) {
 
 	plotTitle(canvas, o, gridArea, data.Title)
 	plotGrid(canvas, o, gridArea)
-	plotObjects(canvas, o, gridArea, data.Objects, data.ObjectCount)
+	plotObjects(canvas, o, gridArea, data)
 	plotSidebar(canvas, o, sidebarArea, data)
 
 	canvas.End()
@@ -97,8 +97,8 @@ func plotGrid(canvas *svg.SVG, o Options, area rect) {
 	canvas.Circle(centerX, centerY, 2, "fill:#000000;stroke:none")
 }
 
-func plotObjects(canvas *svg.SVG, o Options, area rect, head *ObjectList, count int) {
-	if head == nil || count <= 0 {
+func plotObjects(canvas *svg.SVG, o Options, area rect, data *ChartData) {
+	if len(data.Objects) == 0 {
 		return
 	}
 	s := o.Style
@@ -108,36 +108,27 @@ func plotObjects(canvas *svg.SVG, o Options, area rect, head *ObjectList, count 
 	centerY := area.centerY()
 
 	type point struct{ x, y int }
-	points := make([]point, count)
+	points := make([]point, len(data.Objects))
 
-	node := head
-	for i := 0; i < count; i++ {
-		x, y := polar(centerX, centerY, altToRadius(radius, int(node.Coords.Alt)), node.Coords.Az)
+	for i, obj := range data.Objects {
+		x, y := polar(centerX, centerY, altToRadius(radius, int(obj.Coords.Alt)), obj.Coords.Az)
 		points[i] = point{x: x, y: y}
-		node = node.Next
 	}
 
-	// путь между соседними объектами и подписи расстояний
-	node = head
-	for i := 0; i < count; i++ {
-		from, to := points[i], points[(i+1)%count]
+	for i := range data.Objects {
+		from, to := points[i], points[data.Tour.Order[i]]
 		canvas.Line(from.x, from.y, to.x, to.y, s.PathStyle)
 
 		mx, my := (from.x+to.x)/2, (from.y+to.y)/2
 		lx, ly := offsetAwayFromCenter(centerX, centerY, from.x, from.y, to.x, to.y, mx, my, 12)
-		canvas.Text(lx, ly, fmt.Sprintf("%.1f°", node.Dist), s.DistanceTextStyle)
-
-		node = node.Next
+		canvas.Text(lx, ly, fmt.Sprintf("%.1f°", data.Tour.Distances[i][data.Tour.Order[i]]), s.DistanceTextStyle)
 	}
 
-	// сами объекты (звёзды) и подписи названий поверх пути
-	node = head
-	for i := 0; i < count; i++ {
+	for i, obj := range data.Objects {
 		p := points[i]
 		xs, ys := starPoints(p.x, p.y, s.StarSize, s.StarSize/2)
 		canvas.Polygon(xs, ys, s.StarStyle)
-		canvas.Text(p.x, p.y-s.StarSize-4, node.Label, s.ObjectLabelStyle)
-		node = node.Next
+		canvas.Text(p.x, p.y-s.StarSize-4, obj.Label, s.ObjectLabelStyle)
 	}
 }
 
@@ -157,7 +148,7 @@ func offsetAwayFromCenter(cx, cy, fromX, fromY, toX, toY, mx, my, amount int) (i
 	return mx + int(nx*float64(amount)), my + int(ny*float64(amount))
 }
 
-func plotSidebar(canvas *svg.SVG, o Options, area rect, data ChartData) {
+func plotSidebar(canvas *svg.SVG, o Options, area rect, data *ChartData) {
 	y := area.Y0
 
 	y = plotTextPanel(canvas, o, area, y, "Place of Observation",
