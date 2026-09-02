@@ -4,3 +4,4 @@ client
 docker-compose.yml
 .venv
 repomix-output.xml
+.idea
