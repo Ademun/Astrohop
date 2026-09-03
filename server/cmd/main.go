@@ -1,9 +1,9 @@
 package main
 
 import (
-	"astrohop/internal/content"
+	"astrohop/internal/account"
 	"astrohop/internal/infrastructure/postgres"
-	"astrohop/internal/planner"
+	"astrohop/internal/mission"
 	"astrohop/internal/search"
 	"astrohop/internal/web"
 	"astrohop/pkg/config"
@@ -16,8 +16,6 @@ import (
 	"syscall"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 func main() {
@@ -34,17 +32,19 @@ func main() {
 	searchSvc := search.NewService(searchRepo)
 	searchHandler := search.NewHandler(searchSvc)
 	missionRepo := postgres.NewMissionRepo(infra.manager)
-	contentSvc := content.NewService(infra.minioClient)
-	contentHandler := content.NewHandler(contentSvc)
-	plannerSvc := planner.NewService(missionRepo, searchSvc, contentSvc, infra.minioClient)
-	plannerSvc.Start(ctx)
-	plannerHandler := planner.NewHandler(plannerSvc)
+	missionSvc := mission.NewService(missionRepo, searchSvc)
+	missionSvc.Start(ctx)
+	missionHandler := mission.NewHandler(missionSvc)
+	accountRepo := postgres.NewAccountRepo(infra.manager)
+	accountSvc := account.NewService(accountRepo)
+	accountHandler := account.NewHandler(accountSvc)
 
 	server := web.NewServer(
 		missionRepo,
+		accountRepo,
+		accountHandler,
 		searchHandler,
-		plannerHandler,
-		contentHandler,
+		missionHandler,
 	)
 
 	select {
@@ -58,8 +58,7 @@ func main() {
 }
 
 type infrastructure struct {
-	manager     *db.Manager
-	minioClient *minio.Client
+	manager *db.Manager
 }
 
 func initInfra(ctx context.Context) (*infrastructure, error) {
@@ -73,17 +72,5 @@ func initInfra(ctx context.Context) (*infrastructure, error) {
 		return nil, err
 	}
 	infra.manager = db.NewManager(pool)
-	minioClient, err := minio.New(config.C().Infra.MinIOEndpoint, &minio.Options{
-		Creds: credentials.NewStaticV4(
-			config.C().Infra.MinIORootUser,
-			config.C().Infra.MinIORootPassword,
-			"",
-		),
-		Secure: false,
-	})
-	if err != nil {
-		return nil, err
-	}
-	infra.minioClient = minioClient
 	return &infra, nil
 }

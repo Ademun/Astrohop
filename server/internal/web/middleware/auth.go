@@ -4,46 +4,32 @@ import (
 	"astrohop/pkg/apperr"
 	"context"
 	"net/http"
-	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
 type AuthRepo interface {
-	ValidateOwnership(ctx context.Context, missionId int64, accessToken string) (bool, error)
+	GetAccountIDByKey(ctx context.Context, key string) (int64, error)
 }
 
 func NewAuth(
 	repo AuthRepo,
 ) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		missionIdStr := c.Param("id")
-		if missionIdStr == "" {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Missing id parameter"})
+		rawKey := c.GetHeader("Authorization")
+		if rawKey == "" || !strings.HasPrefix(rawKey, "Bearer ") {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "Authorization header is empty"})
 			return
 		}
-		missionId, err := strconv.Atoi(missionIdStr)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid id parameter"})
-			return
-		}
-		accessToken := c.GetHeader("X-Access-Token")
-		if accessToken == "" {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Missing X-Access-Token header"})
-			return
-		}
+		key := strings.TrimPrefix(rawKey, "Bearer ")
 
-		valid, err := repo.ValidateOwnership(c.Request.Context(), int64(missionId), accessToken)
+		id, err := repo.GetAccountIDByKey(c.Request.Context(), key)
 		if err != nil {
 			apperr.HandleHttp(c, err)
 			return
 		}
 
-		if !valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid access token"})
-			return
-		}
-
-		c.Set("mission_id", int64(missionId))
+		c.Set("account_id", id)
 	}
 }

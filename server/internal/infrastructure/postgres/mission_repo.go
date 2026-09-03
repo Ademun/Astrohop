@@ -1,11 +1,10 @@
 package postgres
 
 import (
-	"astrohop/internal/planner"
+	"astrohop/internal/mission"
 	"astrohop/pkg/db"
 	"context"
-
-	"github.com/jackc/pgx/v5"
+	"uuid"
 )
 
 type MissionRepo struct {
@@ -16,34 +15,39 @@ func NewMissionRepo(m *db.Manager) *MissionRepo {
 	return &MissionRepo{m: m}
 }
 
-func (r *MissionRepo) CreateNewMission(ctx context.Context, mission *planner.MissionInfo, accessToken string) (int64, error) {
-	var id int64
-	err := r.m.GetExecutor(ctx).QueryRow(ctx, `insert into application.missions (info, access_token) values ($1, crypt($2, gen_salt('sha256crypt'))) returning mission_id`, mission, accessToken).Scan(&id)
+func (r *MissionRepo) CreateMission(ctx context.Context, data *mission.Data, accountID int64) (uuid.UUID, error) {
+	var id uuid.UUID
+	err := r.m.GetExecutor(ctx).QueryRow(ctx, `insert into application.missions (account_id, data) values ($1, $2) returning mission_id`, accountID, data).Scan(&id)
 	if err != nil {
-		return -1, err
+		return uuid.Nil(), err
 	}
 	return id, nil
 }
 
-func (r *MissionRepo) GetMission(ctx context.Context, missionId int64) (*planner.Mission, error) {
-	rows, err := r.m.GetExecutor(ctx).Query(ctx, `select mission_id, info from application.missions where mission_id = $1`, missionId)
-	if err != nil {
-		return nil, err
-	}
-
-	mission, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[planner.Mission])
-	if err != nil {
-		return nil, err
-	}
-
-	return &mission, nil
+func (r *MissionRepo) GetMission(ctx context.Context, id uuid.UUID) (*mission.Mission, error) {
+	var m mission.Mission
+	err := r.m.GetExecutor(ctx).QueryRow(ctx, `select mission_id, data, map_data, created_at from application.missions where mission_id=$1`, id).Scan(&m.MissionID, &m.Data, &m.MapData, &m.CreatedAt)
+	return &m, err
 }
 
-func (r *MissionRepo) ValidateOwnership(ctx context.Context, missionId int64, accessToken string) (bool, error) {
+func (r *MissionRepo) UpdateMissionData(ctx context.Context, missionID uuid.UUID, data *mission.Data) error {
+	_, err := r.m.GetExecutor(ctx).Exec(ctx, `update application.missions set data = $1 where mission_id = $2`, data, missionID)
+	return err
+}
+
+func (r *MissionRepo) UpdateMissionMapData(ctx context.Context, missionID uuid.UUID, data *mission.MapData) error {
+	_, err := r.m.GetExecutor(ctx).Exec(ctx, `update application.missions set map_data = $1 where mission_id = $2`, data, missionID)
+	return err
+}
+
+func (r *MissionRepo) ValidateOwnership(ctx context.Context, missionID uuid.UUID, accountID int64) (bool, error) {
 	var result bool
-	err := r.m.GetExecutor(ctx).QueryRow(ctx, `select (crypt($1, access_token) = access_token) from application.missions where mission_id = $2`, accessToken, missionId).Scan(&result)
-	if err != nil {
-		return false, err
-	}
-	return result, nil
+	err := r.m.GetExecutor(ctx).QueryRow(ctx, `select (account_id = $1) from application.missions where mission_id = $2`, accountID, missionID).Scan(&result)
+	return result, err
+}
+
+func (r *MissionRepo) IsPublic(ctx context.Context, missionID uuid.UUID) (bool, error) {
+	var result bool
+	err := r.m.GetExecutor(ctx).QueryRow(ctx, `select is_public from application.missions where mission_id = $1`, missionID).Scan(&result)
+	return result, err
 }

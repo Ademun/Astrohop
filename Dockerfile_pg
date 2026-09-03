@@ -1,0 +1,32 @@
+ARG PG_MAJOR=18
+
+FROM postgres:${PG_MAJOR} AS builder
+ARG PG_MAJOR
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        git \
+        ca-certificates \
+        postgresql-server-dev-${PG_MAJOR} \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG PGSPHERE_VERSION=1.5.2
+RUN git clone --branch ${PGSPHERE_VERSION} --depth 1 \
+        https://github.com/postgrespro/pgsphere.git /tmp/pgsphere \
+    && cd /tmp/pgsphere \
+    && make USE_PGXS=1 USE_HEALPIX=0 \
+    && make USE_PGXS=1 USE_HEALPIX=0 install DESTDIR=/out
+
+FROM postgres:${PG_MAJOR}
+ARG PG_MAJOR
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        postgresql-${PG_MAJOR}-cron \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /out/usr/lib/postgresql/${PG_MAJOR}/lib/ /usr/lib/postgresql/${PG_MAJOR}/lib/
+COPY --from=builder /out/usr/share/postgresql/${PG_MAJOR}/extension/ /usr/share/postgresql/${PG_MAJOR}/extension/
+
+CMD ["postgres", \
+     "-c", "shared_preload_libraries=pg_cron", \
+     "-c", "cron.database_name=astrohop"]

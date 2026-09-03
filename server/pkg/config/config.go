@@ -9,9 +9,6 @@ import (
 
 type InfraCfg struct {
 	DBConnectionString string `envconfig:"DB_CONNECTION_STRING"`
-	MinIOEndpoint      string `envconfig:"MINIO_ENDPOINT"`
-	MinIORootUser      string `envconfig:"MINIO_ROOT_USER"`
-	MinIORootPassword  string `envconfig:"MINIO_ROOT_PASSWORD"`
 }
 
 type Config struct {

@@ -1,9 +1,9 @@
 package web
 
 import (
-	"astrohop/internal/content"
+	"astrohop/internal/account"
 	"astrohop/internal/infrastructure/postgres"
-	"astrohop/internal/planner"
+	"astrohop/internal/mission"
 	"astrohop/internal/search"
 	"astrohop/internal/web/middleware"
 
@@ -13,22 +13,25 @@ import (
 
 type Server struct {
 	missionRepo    *postgres.MissionRepo
+	accountRepo    *postgres.AccountRepo
+	accountHandler *account.Handler
 	searchHandler  *search.Handler
-	plannerHandler *planner.Handler
-	contentHandler *content.Handler
+	missionHandler *mission.Handler
 }
 
 func NewServer(
 	missionRepo *postgres.MissionRepo,
+	accountRepo *postgres.AccountRepo,
+	accountHandler *account.Handler,
 	searchHandler *search.Handler,
-	plannerHandler *planner.Handler,
-	contentHandler *content.Handler,
+	missionHandler *mission.Handler,
 ) *Server {
 	return &Server{
 		missionRepo:    missionRepo,
+		accountRepo:    accountRepo,
+		accountHandler: accountHandler,
 		searchHandler:  searchHandler,
-		plannerHandler: plannerHandler,
-		contentHandler: contentHandler,
+		missionHandler: missionHandler,
 	}
 }
 
@@ -42,17 +45,18 @@ func (s *Server) Start(addr string) error {
 func (s *Server) setupCors(r *gin.Engine) {
 	cfg := cors.DefaultConfig()
 	cfg.AllowOrigins = []string{"http://localhost:5173"}
-	cfg.AddExposeHeaders("X-Access-Token")
-	cfg.AddAllowHeaders("X-Access-Token")
+	cfg.AddExposeHeaders("Authorization")
+	cfg.AddAllowHeaders("Authorization")
 	r.Use(cors.New(cfg))
 }
 
 func (s *Server) registerRoutes(r *gin.Engine) {
-	authM := middleware.NewAuth(s.missionRepo)
+	authM := middleware.NewAuth(s.accountRepo)
+	permViewM := middleware.NewPermissions(s.missionRepo, middleware.ActionView)
 
 	r.GET("/api/v1/search/objects", s.searchHandler.HandleSearchObjectsByName())
-	r.POST("/api/v1/missions", s.plannerHandler.HandlePreviewMission())
-
-	r.POST("/api/v1/missions/:id/process", authM, s.plannerHandler.HandleProcessMission())
-	r.GET("/api/v1/missions/:id/map", authM, s.contentHandler.HandleGetMissionMap())
+	r.POST("/api/v1/accounts", s.accountHandler.HandleCreateAccount())
+	r.POST("/api/v1/missions", authM, s.missionHandler.HandleCreateMission())
+	r.GET("/api/v1/missions/:mission_id", authM, permViewM, s.missionHandler.HandleGetMission())
+	r.GET("/api/v1/missions/:mission_id/stream", authM, permViewM, s.missionHandler.HandleGetMissionStream())
 }
