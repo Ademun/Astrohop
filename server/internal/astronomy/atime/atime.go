@@ -63,7 +63,7 @@ func UTCToGAST(t time.Time) float64 {
 	if GAST < 0 {
 		GAST += 24
 	}
-	return GAST + eqeq
+	return GAST
 }
 
 func GetLocalSidereal(loc coordinates.GeoLocation, time time.Time) float64 {
