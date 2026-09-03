@@ -16,6 +16,7 @@ type Repo interface {
 	GetMission(ctx context.Context, id uuid.UUID) (*Mission, error)
 	UpdateMissionData(ctx context.Context, missionID uuid.UUID, data *Data) error
 	UpdateMissionMapData(ctx context.Context, missionID uuid.UUID, data *MapData) error
+	UpdateMissionVisibility(ctx context.Context, missionID uuid.UUID, isPublic bool) error
 	DeleteMission(ctx context.Context, missionID uuid.UUID) error
 }
 
@@ -67,6 +68,13 @@ func (s *Service) UpdateMissionData(ctx context.Context, missionID uuid.UUID, da
 	}
 	if err := s.pool.enqueueTask(task); err != nil {
 		return apperr.New(http.StatusInternalServerError, "planner.service: failed to enqueue task", err)
+	}
+	return nil
+}
+
+func (s *Service) UpdateMissionVisibility(ctx context.Context, missionID uuid.UUID, isPublic bool) error {
+	if err := s.missionRepo.UpdateMissionVisibility(ctx, missionID, isPublic); err != nil {
+		return apperr.New(http.StatusInternalServerError, "planner.service: failed to update visibility", err)
 	}
 	return nil
 }

@@ -53,6 +53,18 @@ func (h *Handler) HandleUpdateMission() gin.HandlerFunc {
 	}
 }
 
+func (h *Handler) HandleUpdateMissionVisibility() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		missionID := uuid.MustParse(c.GetString("mission_id"))
+		isPublic := c.Query("public") == "true"
+		if err := h.svc.UpdateMissionVisibility(c.Request.Context(), missionID, isPublic); err != nil {
+			apperr.HandleHttp(c, err)
+			return
+		}
+		c.Status(http.StatusNoContent)
+	}
+}
+
 func (h *Handler) HandleDeleteMission() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		missionID := uuid.MustParse(c.GetString("mission_id"))

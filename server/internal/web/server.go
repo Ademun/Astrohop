@@ -62,6 +62,7 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 	r.POST("/api/v1/missions", authM, s.missionHandler.HandleCreateMission())
 	r.GET("/api/v1/missions/:mission_id", authM, permViewM, s.missionHandler.HandleGetMission())
 	r.PATCH("/api/v1/missions/:mission_id", authM, permEditM, s.missionHandler.HandleUpdateMission())
+	r.PATCH("api/v1/missions/:mission_id/visibility", authM, permEditM, s.missionHandler.HandleUpdateMissionVisibility())
 	r.DELETE("/api/v1/missions/:mission_id", authM, permDeleteM, s.missionHandler.HandleDeleteMission())
 	r.GET("/api/v1/missions/:mission_id/stream", authM, permViewM, s.missionHandler.HandleGetMissionStream())
 }

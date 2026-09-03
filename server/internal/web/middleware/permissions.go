@@ -22,10 +22,7 @@ type PermissionsRepo interface {
 	IsPublic(ctx context.Context, missionID uuid.UUID) (bool, error)
 }
 
-func NewPermissions(
-	repo PermissionsRepo,
-	action Action,
-) gin.HandlerFunc {
+func NewPermissions(repo PermissionsRepo, action Action) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		accountID := c.GetInt64("account_id")
 		missionIDS := c.Param("mission_id")
@@ -44,21 +41,27 @@ func NewPermissions(
 			apperr.HandleHttp(c, err)
 			return
 		}
+		if isOwner {
+			c.Set("mission_id", missionID.String())
+			return
+		}
+
 		isPublic, err := repo.IsPublic(c.Request.Context(), missionID)
 		if err != nil {
 			apperr.HandleHttp(c, err)
+			return
 		}
 
-		if !isOwner && !isPublic {
+		if !isPublic {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
 
-		if !isOwner && action != ActionView {
-			c.AbortWithStatus(http.StatusForbidden)
+		if action == ActionView {
+			c.Set("mission_id", missionID.String())
 			return
 		}
 
-		c.Set("mission_id", missionID.String())
+		c.AbortWithStatus(http.StatusForbidden)
 	}
 }

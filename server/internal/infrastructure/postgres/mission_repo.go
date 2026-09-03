@@ -40,6 +40,11 @@ func (r *MissionRepo) UpdateMissionMapData(ctx context.Context, missionID uuid.U
 	return err
 }
 
+func (r *MissionRepo) UpdateMissionVisibility(ctx context.Context, missionID uuid.UUID, isPublic bool) error {
+	_, err := r.m.GetExecutor(ctx).Exec(ctx, `update application.missions set is_public = $1 where mission_id = $2`, isPublic, missionID)
+	return err
+}
+
 func (r *MissionRepo) DeleteMission(ctx context.Context, missionID uuid.UUID) error {
 	_, err := r.m.GetExecutor(ctx).Exec(ctx, `delete from application.missions where mission_id = $1`, missionID)
 	return err
