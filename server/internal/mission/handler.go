@@ -37,6 +37,33 @@ func (h *Handler) HandleCreateMission() gin.HandlerFunc {
 	}
 }
 
+func (h *Handler) HandleUpdateMission() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		missionID := uuid.MustParse(c.GetString("mission_id"))
+		var json Data
+		if err := c.ShouldBindJSON(&json); err != nil {
+			apperr.HandleHttp(c, apperr.New(http.StatusUnprocessableEntity, "invalid mission", err))
+			return
+		}
+		if err := h.svc.UpdateMissionData(c.Request.Context(), missionID, &json); err != nil {
+			apperr.HandleHttp(c, err)
+			return
+		}
+		c.Status(http.StatusNoContent)
+	}
+}
+
+func (h *Handler) HandleDeleteMission() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		missionID := uuid.MustParse(c.GetString("mission_id"))
+		if err := h.svc.DeleteMission(c.Request.Context(), missionID); err != nil {
+			apperr.HandleHttp(c, err)
+			return
+		}
+		c.Status(http.StatusNoContent)
+	}
+}
+
 func (h *Handler) HandleGetMission() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		missionID := uuid.MustParse(c.GetString("mission_id"))

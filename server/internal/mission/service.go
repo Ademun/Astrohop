@@ -14,7 +14,9 @@ import (
 type Repo interface {
 	CreateMission(ctx context.Context, data *Data, accountID int64) (uuid.UUID, error)
 	GetMission(ctx context.Context, id uuid.UUID) (*Mission, error)
+	UpdateMissionData(ctx context.Context, missionID uuid.UUID, data *Data) error
 	UpdateMissionMapData(ctx context.Context, missionID uuid.UUID, data *MapData) error
+	DeleteMission(ctx context.Context, missionID uuid.UUID) error
 }
 
 type Service struct {
@@ -40,19 +42,40 @@ func (s *Service) Start(ctx context.Context) {
 	}
 }
 
-func (s *Service) CreateMission(ctx context.Context, d *Data, accountID int64) (uuid.UUID, error) {
-	missionID, err := s.missionRepo.CreateMission(ctx, d, accountID)
+func (s *Service) CreateMission(ctx context.Context, data *Data, accountID int64) (uuid.UUID, error) {
+	missionID, err := s.missionRepo.CreateMission(ctx, data, accountID)
 	if err != nil {
 		return uuid.Nil(), apperr.New(http.StatusInternalServerError, "planner.service: failed to create new mission", err)
 	}
 	task := missionTask{
 		MissionID: missionID,
-		Data:      d,
+		Data:      data,
 	}
 	if err := s.pool.enqueueTask(task); err != nil {
 		return uuid.Nil(), apperr.New(http.StatusInternalServerError, "planner.service: failed to enqueue task", err)
 	}
 	return missionID, nil
+}
+
+func (s *Service) UpdateMissionData(ctx context.Context, missionID uuid.UUID, data *Data) error {
+	if err := s.missionRepo.UpdateMissionData(ctx, missionID, data); err != nil {
+		return apperr.New(http.StatusInternalServerError, "planner.service: failed to update data", err)
+	}
+	task := missionTask{
+		MissionID: missionID,
+		Data:      data,
+	}
+	if err := s.pool.enqueueTask(task); err != nil {
+		return apperr.New(http.StatusInternalServerError, "planner.service: failed to enqueue task", err)
+	}
+	return nil
+}
+
+func (s *Service) DeleteMission(ctx context.Context, missionID uuid.UUID) error {
+	if err := s.missionRepo.DeleteMission(ctx, missionID); err != nil {
+		return apperr.New(http.StatusInternalServerError, "planner.service: failed to delete mission", err)
+	}
+	return nil
 }
 
 func (s *Service) GetMission(ctx context.Context, id uuid.UUID) (*Mission, error) {

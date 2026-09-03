@@ -40,6 +40,11 @@ func (r *MissionRepo) UpdateMissionMapData(ctx context.Context, missionID uuid.U
 	return err
 }
 
+func (r *MissionRepo) DeleteMission(ctx context.Context, missionID uuid.UUID) error {
+	_, err := r.m.GetExecutor(ctx).Exec(ctx, `delete from application.missions where mission_id = $1`, missionID)
+	return err
+}
+
 func (r *MissionRepo) ValidateOwnership(ctx context.Context, missionID uuid.UUID, accountID int64) (bool, error) {
 	var result bool
 	err := r.m.GetExecutor(ctx).QueryRow(ctx, `select (account_id = $1) from application.missions where mission_id = $2`, accountID, missionID).Scan(&result)
