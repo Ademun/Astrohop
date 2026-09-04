@@ -10,7 +10,7 @@ import (
 
 type Repo interface {
 	SearchObjectsByName(ctx context.Context, name string) ([]Object, error)
-	GetObjectNavData(ctx context.Context, oid int64) (*NavData, error)
+	GetObjectsNavData(ctx context.Context, oid []int64) ([]NavData, error)
 }
 
 type Service struct {
@@ -30,18 +30,22 @@ func (s *Service) SearchObjectsByName(ctx context.Context, name string) ([]Objec
 	return objects, nil
 }
 
-func (s *Service) GetObjectStellarData(ctx context.Context, oid int64) (*ObjectStellarData, error) {
-	data, err := s.repo.GetObjectNavData(ctx, oid)
+func (s *Service) GetObjectsStellarData(ctx context.Context, oid []int64) ([]ObjectStellarData, error) {
+	data, err := s.repo.GetObjectsNavData(ctx, oid)
 	if err != nil {
 		return nil, apperr.New(http.StatusInternalServerError, "failed to find object stellar data", err)
 	}
-	return &ObjectStellarData{
-		EqCoords: coordinates.Equatorial{
-			RA:  data.RA,
-			Dec: data.Dec,
-		},
-		ApparentMagnitude: data.ApparentMagnitude,
-	}, nil
+	stellarData := make([]ObjectStellarData, len(data))
+	for i, obj := range data {
+		stellarData[i] = ObjectStellarData{
+			EqCoords: coordinates.Equatorial{
+				RA:  obj.RA,
+				Dec: obj.Dec,
+			},
+			ApparentMagnitude: obj.ApparentMagnitude,
+		}
+	}
+	return stellarData, nil
 }
 
 func normalizeObjectName(name string) string {

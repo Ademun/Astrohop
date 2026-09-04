@@ -163,21 +163,21 @@ func (s *Service) missionWorker(ctx context.Context, q chan missionTask) {
 }
 
 func (s *Service) buildTour(ctx context.Context, objectives []Objective) (*algo.Tour, error) {
+	objectOids := make([]int64, len(objectives))
+	for i, objective := range objectives {
+		objectOids[i] = objective.OID
+	}
+	objectStellarData, err := s.searchSvc.GetObjectsStellarData(ctx, objectOids)
+	if err != nil {
+		return nil, err
+	}
 	distanceMtrx := make([][]float64, len(objectives))
 	for i := range objectives {
 		distanceMtrx[i] = make([]float64, len(objectives))
 	}
-	for i := 0; i < len(objectives)-1; i++ {
-		for j := i + 1; j < len(objectives); j++ {
-			stdi, err := s.searchSvc.GetObjectStellarData(ctx, objectives[i].OID)
-			if err != nil {
-				return nil, err
-			}
-			stdj, err := s.searchSvc.GetObjectStellarData(ctx, objectives[j].OID)
-			if err != nil {
-				return nil, err
-			}
-			dist := coordinates.DistanceEq(stdi.EqCoords, stdj.EqCoords)
+	for i := 0; i < len(objectStellarData)-1; i++ {
+		for j := i + 1; j < len(objectStellarData); j++ {
+			dist := coordinates.DistanceEq(objectStellarData[i].EqCoords, objectStellarData[j].EqCoords)
 			distanceMtrx[i][j] = dist
 			distanceMtrx[j][i] = dist
 		}

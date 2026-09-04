@@ -43,16 +43,16 @@ limit 20
 	return objects, nil
 }
 
-func (r *SearchRepo) GetObjectNavData(ctx context.Context, oid int64) (*search.NavData, error) {
+func (r *SearchRepo) GetObjectsNavData(ctx context.Context, oid []int64) ([]search.NavData, error) {
 	rows, err := r.m.GetExecutor(ctx).Query(ctx, `select ra, dec, apparent_mag from data.nav_data where oid = $1`, oid)
 	if err != nil {
 		return nil, err
 	}
 
-	data, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[search.NavData])
+	data, err := pgx.CollectRows(rows, pgx.RowToStructByName[search.NavData])
 	if err != nil {
 		return nil, err
 	}
 
-	return &data, nil
+	return data, nil
 }
