@@ -3,9 +3,9 @@ package search
 import "astrohop/internal/astronomy/coordinates"
 
 type Object struct {
-	OID        int64  `db:"oid" json:"oid" binding:"required"`
-	Identifier string `db:"identifier" json:"name" binding:"required"`
-	ObjectType string `db:"object_type" json:"type" binding:"required"`
+	OID        int64  `db:"oid"`
+	Identifier string `db:"identifier"`
+	ObjectType string `db:"object_type"`
 }
 
 type ObjectStellarData struct {

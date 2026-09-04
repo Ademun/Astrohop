@@ -36,6 +36,11 @@ func (h *Handler) HandleSearchObjectsByName() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, objects)
+		dto := make([]ObjectDTO, len(objects))
+		for i, object := range objects {
+			dto[i] = object.ToDTO()
+		}
+
+		c.JSON(http.StatusOK, dto)
 	}
 }

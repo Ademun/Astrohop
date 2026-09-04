@@ -21,13 +21,13 @@ func NewHandler(svc *Service) *Handler {
 func (h *Handler) HandleCreateMission() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		accountID := c.GetInt64("account_id")
-		var json Data
+		var json DataDTO
 		if err := c.ShouldBindJSON(&json); err != nil {
 			apperr.HandleHttp(c, apperr.New(http.StatusUnprocessableEntity, "invalid mission", err))
 			return
 		}
 
-		id, err := h.svc.CreateMission(c.Request.Context(), &json, accountID)
+		id, err := h.svc.CreateMission(c.Request.Context(), json.ToDomain(), accountID)
 		if err != nil {
 			apperr.HandleHttp(c, err)
 			return
@@ -40,12 +40,12 @@ func (h *Handler) HandleCreateMission() gin.HandlerFunc {
 func (h *Handler) HandleUpdateMission() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		missionID := uuid.MustParse(c.GetString("mission_id"))
-		var json Data
+		var json DataDTO
 		if err := c.ShouldBindJSON(&json); err != nil {
 			apperr.HandleHttp(c, apperr.New(http.StatusUnprocessableEntity, "invalid mission", err))
 			return
 		}
-		if err := h.svc.UpdateMissionData(c.Request.Context(), missionID, &json); err != nil {
+		if err := h.svc.UpdateMissionData(c.Request.Context(), missionID, json.ToDomain()); err != nil {
 			apperr.HandleHttp(c, err)
 			return
 		}
@@ -84,7 +84,7 @@ func (h *Handler) HandleGetMission() gin.HandlerFunc {
 			apperr.HandleHttp(c, err)
 			return
 		}
-		c.JSON(http.StatusOK, mission)
+		c.JSON(http.StatusOK, mission.ToDTO())
 	}
 }
 
