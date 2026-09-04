@@ -58,8 +58,8 @@ func (hr Horizontal) ToEquatorial(lst float64, lat float64) Equatorial {
 }
 
 type GeoLocation struct {
-	Lat  float64 `json:"lat" binding:"required"`
-	Long float64 `json:"long" binding:"required"`
+	Lat  float64 `json:"lat"`
+	Long float64 `json:"long"`
 }
 
 func DistanceEq(a, b Equatorial) float64 {
