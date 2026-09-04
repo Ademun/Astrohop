@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"astrohop/internal/account"
 	"context"
 	"net/http"
 	"uuid"
@@ -17,8 +18,7 @@ const (
 )
 
 type PermissionsRepo interface {
-	ValidateOwnership(ctx context.Context, missionID uuid.UUID, accountID int64) (bool, error)
-	IsPublic(ctx context.Context, missionID uuid.UUID) (bool, error)
+	GetMissionPermissions(ctx context.Context, accountID int64, missionID uuid.UUID) (*account.MissionPermissions, error)
 }
 
 func NewPermissions(repo PermissionsRepo, action Action) gin.HandlerFunc {
@@ -35,25 +35,18 @@ func NewPermissions(repo PermissionsRepo, action Action) gin.HandlerFunc {
 			return
 		}
 
-		isOwner, err := repo.ValidateOwnership(c.Request.Context(), missionID, accountID)
+		permissions, err := repo.GetMissionPermissions(c.Request.Context(), accountID, missionID)
 		if err != nil {
 			c.Error(err)
 			c.Abort()
 			return
 		}
-		if isOwner {
+		if permissions.IsOwner {
 			c.Set("mission_id", missionID.String())
 			return
 		}
 
-		isPublic, err := repo.IsPublic(c.Request.Context(), missionID)
-		if err != nil {
-			c.Error(err)
-			c.Abort()
-			return
-		}
-
-		if !isPublic {
+		if !permissions.IsMissionPublic {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}

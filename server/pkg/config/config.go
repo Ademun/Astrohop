@@ -1,9 +1,6 @@
 package config
 
 import (
-	"fmt"
-	"sync"
-
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -15,18 +12,10 @@ type Config struct {
 	Infra InfraCfg
 }
 
-var load = sync.OnceValues(func() (*Config, error) {
+func GetConfig() *Config {
 	var cfg Config
 	if err := envconfig.Process("", &cfg); err != nil {
-		return nil, err
+		panic(err)
 	}
-	return &cfg, nil
-})
-
-func C() *Config {
-	cfg, err := load()
-	if err != nil {
-		panic(fmt.Sprintf("failed to load config: %v", err))
-	}
-	return cfg
+	return &cfg
 }

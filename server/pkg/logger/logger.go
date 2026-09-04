@@ -1,12 +1,10 @@
 package logger
 
 import (
-	"sync"
-
 	"go.uber.org/zap"
 )
 
-var load = sync.OnceValue(func() *zap.SugaredLogger {
+func GetLogger() *zap.SugaredLogger {
 	log, _ := zap.NewDevelopment()
 	defer func() {
 		if err := log.Sync(); err != nil {
@@ -14,8 +12,4 @@ var load = sync.OnceValue(func() *zap.SugaredLogger {
 		}
 	}()
 	return log.Sugar()
-})
-
-func L() *zap.SugaredLogger {
-	return load()
 }

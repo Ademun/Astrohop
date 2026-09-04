@@ -10,10 +10,12 @@ import (
 	"astrohop/pkg/db"
 	"astrohop/pkg/logger"
 	"context"
+	"errors"
 	"fmt"
-	"log"
+	"net/http"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -22,8 +24,10 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	logger.L().Infow("Starting app")
-	infra, err := initInfra(ctx)
+	log := logger.GetLogger()
+	cfg := config.GetConfig()
+
+	infra, err := initInfra(ctx, cfg)
 	if err != nil {
 		log.Fatal(fmt.Errorf("failed to initialize infrastructure: %w", err))
 	}
@@ -47,23 +51,30 @@ func main() {
 		missionHandler,
 	)
 
-	select {
-	case <-ctx.Done():
-		logger.L().Infow("Shutting down server")
-		return
-	default:
-		logger.L().Infow("Starting HTTP server")
-		logger.L().Fatal(server.Start("0.0.0.0:8080"))
+	srv := server.Server("0.0.0.0:8080")
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
+
+	<-ctx.Done()
+	log.Info("Shutting down...")
+	ctxShutDown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctxShutDown); err != nil {
+		log.Fatalf("Server Shutdown: %v", err)
 	}
+	infra.manager.Pool.Close()
+	log.Info("Server exiting")
 }
 
 type infrastructure struct {
 	manager *db.Manager
 }
 
-func initInfra(ctx context.Context) (*infrastructure, error) {
+func initInfra(ctx context.Context, cfg *config.Config) (*infrastructure, error) {
 	var infra infrastructure
-	cfg := config.C()
 	pool, err := pgxpool.New(ctx, cfg.Infra.DBConnectionString)
 	if err != nil {
 		return nil, err

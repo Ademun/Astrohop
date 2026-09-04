@@ -19,12 +19,12 @@ type Executor interface {
 var txKey = "tx"
 
 type Manager struct {
-	pool *pgxpool.Pool
+	Pool *pgxpool.Pool
 }
 
 func NewManager(pool *pgxpool.Pool) *Manager {
 	return &Manager{
-		pool: pool,
+		Pool: pool,
 	}
 }
 
@@ -32,7 +32,7 @@ func (m *Manager) WithTx(ctx context.Context, f func(context.Context) error) err
 	if _, ok := ctx.Value(txKey).(pgx.Tx); ok {
 		return f(ctx)
 	}
-	tx, err := m.pool.Begin(ctx)
+	tx, err := m.Pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("tx manager: begin: %w", err)
 	}
@@ -58,17 +58,7 @@ func (m *Manager) WithTx(ctx context.Context, f func(context.Context) error) err
 func (m *Manager) GetExecutor(ctx context.Context) Executor {
 	tx, ok := ctx.Value(txKey).(pgx.Tx)
 	if !ok {
-		return m.pool
+		return m.Pool
 	}
 	return tx
 }
-
-/*func WithTxResult[T any](ctx context.Context, m *Manager, f func(context.Context) (T, error)) (T, error) {
-	var result T
-	err := m.WithTx(ctx, func(c context.Context) error {
-		var inErr error
-		result, inErr = f(c)
-		return inErr
-	})
-	return result, err
-}*/

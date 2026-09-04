@@ -6,6 +6,7 @@ import (
 	"astrohop/internal/mission"
 	"astrohop/internal/search"
 	"astrohop/internal/web/middleware"
+	"net/http"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -35,11 +36,14 @@ func NewServer(
 	}
 }
 
-func (s *Server) Start(addr string) error {
+func (s *Server) Server(addr string) *http.Server {
 	r := gin.Default()
 	s.setupCors(r)
 	s.registerRoutes(r)
-	return r.Run(addr)
+	return &http.Server{
+		Addr:    addr,
+		Handler: r.Handler(),
+	}
 }
 
 func (s *Server) setupCors(r *gin.Engine) {
