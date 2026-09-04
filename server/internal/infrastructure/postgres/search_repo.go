@@ -18,15 +18,22 @@ func NewSearchRepo(m *db.Manager) *SearchRepo {
 }
 
 func (r *SearchRepo) SearchObjectsByName(ctx context.Context, name string) ([]search.Object, error) {
-	rows, err := r.m.GetExecutor(ctx).Query(ctx, `select oi.oid,
+	rows, err := r.m.GetExecutor(ctx).Query(ctx, `
+with prepared_ids as (
+    select oid, 
+           identifier, 
+           lower(replace(identifier, ' ', '')) as norm_id
+    from data.object_identifiers
+)
+select oi.oid,
        oids.identifier,
        oi.object_type
-from data.object_identifiers oids
+from prepared_ids oids
          inner join data.object_index oi on oi.oid = oids.oid
-where lower(replace(oids.identifier, ' ', '')) like '%' || $1 || '%'
-order by strpos($1, lower(replace(oids.identifier, ' ', ''))),
-         strict_word_similarity($1, lower(replace(oids.identifier, ' ', ''))) desc
-limit 20
+where oids.norm_id like '%' || $1 || '%'
+order by position($1, oids.norm_id),
+         strict_word_similarity($1, oids.norm_id) desc
+limit 20;
 `, name)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
