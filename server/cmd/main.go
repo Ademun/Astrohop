@@ -6,6 +6,7 @@ import (
 	"astrohop/internal/mission"
 	"astrohop/internal/search"
 	"astrohop/internal/web"
+	"astrohop/internal/web/middleware"
 	"astrohop/pkg/config"
 	"astrohop/pkg/db"
 	"astrohop/pkg/logger"
@@ -42,13 +43,21 @@ func main() {
 	accountRepo := postgres.NewAccountRepo(infra.manager)
 	accountSvc := account.NewService(accountRepo)
 	accountHandler := account.NewHandler(accountSvc)
+	authMware := middleware.NewAuth(accountRepo)
+	permViewMware := middleware.NewPermissions(accountRepo, middleware.ActionView)
+	permEditMware := middleware.NewPermissions(accountRepo, middleware.ActionEdit)
+	permDeleteMware := middleware.NewPermissions(accountRepo, middleware.ActionDelete)
+	errorMware := middleware.NewError(log)
 
 	server := web.NewServer(
-		missionRepo,
-		accountRepo,
 		accountHandler,
 		searchHandler,
 		missionHandler,
+		authMware,
+		permViewMware,
+		permEditMware,
+		permDeleteMware,
+		errorMware,
 	)
 
 	srv := server.Server("0.0.0.0:8080")

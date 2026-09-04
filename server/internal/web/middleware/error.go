@@ -5,11 +5,11 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/bytedance/gopkg/util/logger"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
-func NewError(log logger.Logger) gin.HandlerFunc {
+func NewError(log *zap.SugaredLogger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
 		if len(c.Errors) == 0 {
