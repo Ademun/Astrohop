@@ -1,7 +1,6 @@
 package account
 
 import (
-	"astrohop/pkg/apperr"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -19,7 +18,7 @@ func (h *Handler) HandleCreateAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		key, err := h.svc.CreateAccount(c.Request.Context())
 		if err != nil {
-			apperr.HandleHttp(c, err)
+			c.Error(err)
 			return
 		}
 		c.Header("Authorization", "Bearer "+key)

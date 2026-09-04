@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"astrohop/pkg/apperr"
 	"context"
 	"net/http"
 	"uuid"
@@ -38,7 +37,8 @@ func NewPermissions(repo PermissionsRepo, action Action) gin.HandlerFunc {
 
 		isOwner, err := repo.ValidateOwnership(c.Request.Context(), missionID, accountID)
 		if err != nil {
-			apperr.HandleHttp(c, err)
+			c.Error(err)
+			c.Abort()
 			return
 		}
 		if isOwner {
@@ -48,7 +48,8 @@ func NewPermissions(repo PermissionsRepo, action Action) gin.HandlerFunc {
 
 		isPublic, err := repo.IsPublic(c.Request.Context(), missionID)
 		if err != nil {
-			apperr.HandleHttp(c, err)
+			c.Error(err)
+			c.Abort()
 			return
 		}
 

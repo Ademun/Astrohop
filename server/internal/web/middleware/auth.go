@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"astrohop/pkg/apperr"
 	"context"
 	"net/http"
 	"strings"
@@ -26,7 +25,8 @@ func NewAuth(
 
 		id, err := repo.GetAccountIDByKey(c.Request.Context(), key)
 		if err != nil {
-			apperr.HandleHttp(c, err)
+			c.Error(err)
+			c.Abort()
 			return
 		}
 

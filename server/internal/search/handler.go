@@ -20,7 +20,7 @@ func (h *Handler) HandleSearchObjectsByName() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Query("name")
 		if name == "" {
-			apperr.HandleHttp(c,
+			c.Error(
 				apperr.New(
 					http.StatusUnprocessableEntity,
 					"missing object name query param",
@@ -32,7 +32,7 @@ func (h *Handler) HandleSearchObjectsByName() gin.HandlerFunc {
 
 		objects, err := h.svc.SearchObjectsByName(c.Request.Context(), name)
 		if err != nil {
-			apperr.HandleHttp(c, err)
+			c.Error(err)
 			return
 		}
 

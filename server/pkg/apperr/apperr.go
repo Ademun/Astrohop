@@ -1,12 +1,7 @@
 package apperr
 
 import (
-	"astrohop/pkg/logger"
-	"errors"
 	"fmt"
-	"net/http"
-
-	"github.com/gin-gonic/gin"
 )
 
 type ErrCode int
@@ -23,15 +18,4 @@ func New(code int, msg string, err error) *Err {
 
 func (e Err) Error() string {
 	return fmt.Sprintf("Code %d: %s. Err: %s", e.Code, e.Msg, e.Err.Error())
-}
-
-func HandleHttp(c *gin.Context, err error) {
-	if err != nil {
-		logger.L().Error(err.Error())
-	}
-	if e, ok := errors.AsType[*Err](err); ok {
-		c.AbortWithStatusJSON(e.Code, gin.H{"error": e.Msg})
-		return
-	}
-	c.AbortWithStatus(http.StatusInternalServerError)
 }
