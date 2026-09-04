@@ -105,9 +105,6 @@ func (s *Service) GetMissionStream(ctx context.Context, id uuid.UUID) (<-chan ta
 	}
 
 	if mission.MapData == nil {
-		ch := make(chan taskResult)
-		s.pool.setTaskProgressChan(id, ch)
-
 		task := missionTask{
 			MissionID: id,
 			Data:      mission.Data,
@@ -116,7 +113,7 @@ func (s *Service) GetMissionStream(ctx context.Context, id uuid.UUID) (<-chan ta
 			s.pool.setTaskProgressChan(id, nil)
 			return nil, apperr.New(http.StatusInternalServerError, "planner.service: failed to enqueue task", err)
 		}
-		return ch, nil
+		return s.pool.getTaskProgressChan(id), nil
 	}
 
 	ch := make(chan taskResult)

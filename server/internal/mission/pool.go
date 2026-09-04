@@ -21,8 +21,11 @@ func newPool() *pool {
 }
 
 func (p *pool) enqueueTask(task missionTask) error {
+	ch := make(chan taskResult)
+	p.setTaskProgressChan(task.MissionID, ch)
 	select {
 	case <-time.After(time.Second * 10):
+		p.setTaskProgressChan(task.MissionID, nil)
 		return errors.New("mission task pool: timeout on task enqueue")
 	case p.Queue <- task:
 		return nil
