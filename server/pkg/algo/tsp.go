@@ -66,9 +66,16 @@ func UseFarthestInsertion(distanceMtrx [][]float64) *Tour {
 		seenNodes[nextNode] = struct{}{}
 	}
 
+	order := make([]int, len(distanceMtrx))
+	cur := 0
+	for i := 1; i < len(order); i++ {
+		cur = nextNodeIdx[cur]
+		order[i] = cur
+	}
+
 	tour := &Tour{
 		Distances: distanceMtrx,
-		Order:     nextNodeIdx,
+		Order:     order,
 	}
 
 	return tour

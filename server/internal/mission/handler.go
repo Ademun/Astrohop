@@ -2,7 +2,6 @@ package mission
 
 import (
 	"astrohop/pkg/apperr"
-	"astrohop/pkg/logger"
 	"io"
 	"net/http"
 	"uuid"
