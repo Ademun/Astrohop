@@ -4,9 +4,9 @@ import (
 	"astrohop/pkg/apperr"
 	"io"
 	"net/http"
-	"uuid"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -84,6 +84,22 @@ func (h *Handler) HandleGetMission() gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, mission.ToDTO())
+	}
+}
+
+func (h *Handler) HandleGetAccountMissions() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		accountID := c.GetInt64("account_id")
+		missions, err := h.svc.GetAccountMissions(c.Request.Context(), accountID)
+		if err != nil {
+			c.Error(err)
+			return
+		}
+		dto := make([]MissionDTO, len(missions))
+		for i, m := range missions {
+			dto[i] = *m.ToDTO()
+		}
+		c.JSON(http.StatusOK, dto)
 	}
 }
 

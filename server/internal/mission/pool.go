@@ -4,7 +4,8 @@ import (
 	"errors"
 	"sync"
 	"time"
-	"uuid"
+
+	"github.com/google/uuid"
 )
 
 type pool struct {

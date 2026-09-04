@@ -4,7 +4,8 @@ import (
 	"astrohop/internal/mission"
 	"astrohop/pkg/db"
 	"context"
-	"uuid"
+
+	"github.com/google/uuid"
 )
 
 type MissionRepo struct {
@@ -19,7 +20,7 @@ func (r *MissionRepo) CreateMission(ctx context.Context, data *mission.Data, acc
 	var id uuid.UUID
 	err := r.m.GetExecutor(ctx).QueryRow(ctx, `insert into application.missions (account_id, data) values ($1, $2) returning mission_id`, accountID, data).Scan(&id)
 	if err != nil {
-		return uuid.Nil(), err
+		return uuid.Nil, err
 	}
 	return id, nil
 }
@@ -28,6 +29,24 @@ func (r *MissionRepo) GetMission(ctx context.Context, id uuid.UUID) (*mission.Mi
 	var m mission.Mission
 	err := r.m.GetExecutor(ctx).QueryRow(ctx, `select mission_id, data, map_data, created_at from application.missions where mission_id=$1`, id).Scan(&m.MissionID, &m.Data, &m.MapData, &m.CreatedAt)
 	return &m, err
+}
+
+func (r *MissionRepo) GetAccountMissions(ctx context.Context, accountID int64) ([]mission.Mission, error) {
+	rows, err := r.m.GetExecutor(ctx).Query(ctx, `select mission_id, created_at from application.missions where account_id=$1`, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	missions := make([]mission.Mission, 0)
+	for rows.Next() {
+		var m mission.Mission
+		err := rows.Scan(&m.MissionID, &m.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		missions = append(missions, m)
+	}
+	return missions, rows.Err()
 }
 
 func (r *MissionRepo) UpdateMissionData(ctx context.Context, missionID uuid.UUID, data *mission.Data) error {

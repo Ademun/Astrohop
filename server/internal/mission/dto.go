@@ -10,8 +10,8 @@ import (
 
 type MissionDTO struct {
 	MissionID uuid.UUID   `json:"mission_id"`
-	Data      *DataDTO    `json:"data"`
-	MapData   *MapDataDTO `json:"map_data"`
+	Data      *DataDTO    `json:"data,omitempty"`
+	MapData   *MapDataDTO `json:"map_data,omitempty"`
 	CreatedAt time.Time   `json:"created_at"`
 }
 
