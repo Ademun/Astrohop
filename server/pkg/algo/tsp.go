@@ -1,8 +1,8 @@
 package algo
 
 type Tour struct {
-	Order     []int
-	Distances [][]float64
+	Order     []int       `json:"order"`
+	Distances [][]float64 `json:"distances"`
 }
 
 func UseFarthestInsertion(distanceMtrx [][]float64) *Tour {

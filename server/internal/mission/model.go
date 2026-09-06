@@ -23,7 +23,8 @@ type Data struct {
 }
 
 type MapData struct {
-	Tour *algo.Tour `db:"tour"`
+	Positions []coordinates.Horizontal `db:"positions"`
+	Tour      *algo.Tour               `db:"tour"`
 }
 
 type Objective struct {

@@ -1,6 +1,7 @@
 package mission
 
 import (
+	"astrohop/internal/astronomy/atime"
 	"astrohop/internal/astronomy/coordinates"
 	"astrohop/internal/search"
 	"astrohop/pkg/algo"
@@ -152,13 +153,26 @@ func (s *Service) missionWorker(ctx context.Context, q chan missionTask) {
 				progressChan <- taskResult{Progress: taskBuildingRoute}
 
 				objectives := task.Data.Objectives
-				tour, err := s.buildTour(ctx, objectives)
+				objectOids := make([]int64, len(objectives))
+				for i, objective := range objectives {
+					objectOids[i] = objective.OID
+				}
+				objectStellarData, err := s.searchSvc.GetObjectsStellarData(ctx, objectOids)
+				positions := make([]coordinates.Horizontal, len(objectives))
+				for i, d := range objectStellarData {
+					positions[i] = d.EqCoords.ToHorizontal(atime.GetLocalSidereal(task.Data.Location, task.Data.Time), task.Data.Location.Lat)
+				}
+
+				tour, err := s.buildTour(ctx, objectStellarData)
 				if err != nil {
 					progressChan <- taskResult{Progress: taskFailed, Error: err}
 					return
 				}
 
-				mapData := &MapData{Tour: tour}
+				mapData := &MapData{
+					Positions: positions,
+					Tour:      tour,
+				}
 				if err := s.missionRepo.UpdateMissionMapData(ctx, task.MissionID, mapData); err != nil {
 					progressChan <- taskResult{Progress: taskFailed, Error: err}
 					return
@@ -170,22 +184,14 @@ func (s *Service) missionWorker(ctx context.Context, q chan missionTask) {
 	}
 }
 
-func (s *Service) buildTour(ctx context.Context, objectives []Objective) (*algo.Tour, error) {
-	objectOids := make([]int64, len(objectives))
-	for i, objective := range objectives {
-		objectOids[i] = objective.OID
+func (s *Service) buildTour(ctx context.Context, stellarData []search.ObjectStellarData) (*algo.Tour, error) {
+	distanceMtrx := make([][]float64, len(stellarData))
+	for i := range stellarData {
+		distanceMtrx[i] = make([]float64, len(stellarData))
 	}
-	objectStellarData, err := s.searchSvc.GetObjectsStellarData(ctx, objectOids)
-	if err != nil {
-		return nil, err
-	}
-	distanceMtrx := make([][]float64, len(objectives))
-	for i := range objectives {
-		distanceMtrx[i] = make([]float64, len(objectives))
-	}
-	for i := 0; i < len(objectStellarData)-1; i++ {
-		for j := i + 1; j < len(objectStellarData); j++ {
-			dist := coordinates.DistanceEq(objectStellarData[i].EqCoords, objectStellarData[j].EqCoords)
+	for i := 0; i < len(stellarData)-1; i++ {
+		for j := i + 1; j < len(stellarData); j++ {
+			dist := coordinates.DistanceEq(stellarData[i].EqCoords, stellarData[j].EqCoords)
 			distanceMtrx[i][j] = dist
 			distanceMtrx[j][i] = dist
 		}

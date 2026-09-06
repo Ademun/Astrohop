@@ -1,167 +1,492 @@
 openapi: 3.0.4
 info:
-  title: API
+  title: Astrohop REST API
   version: 1.0.0
+  description: REST API for Astrohop astronomical observation missions.
 servers:
-  - url: http://localhost:8080/api/v1
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: Accounts
+  - name: Search
+  - name: Missions
+
 paths:
-  /search/objects:
+  /api/v1/accounts:
+    post:
+      tags: [Accounts]
+      summary: Create an account
+      description: Creates an account and returns the generated bearer credential in the Authorization response header.
+      operationId: createAccount
+      responses:
+        '201':
+          description: Account created successfully. No response body is returned.
+          headers:
+            Authorization:
+              description: Bearer credential for authenticating subsequent API requests.
+              schema:
+                type: string
+                example: Bearer eyJ...
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/search/objects:
     get:
-      summary: Search objects by name
+      tags: [Search]
+      summary: Search astronomical objects by name
+      operationId: searchObjects
       parameters:
         - name: name
-          description: Object catalog identifier
           in: query
           required: true
+          description: Object name or identifier fragment. Search is case-insensitive and ignores spaces.
           schema:
             type: string
+            minLength: 1
+          example: vega
       responses:
         '200':
-          description: OK
+          description: Matching objects, limited by the server to at most 20 results.
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: object
-                  properties:
-                    oid:
-                      type: integer
-                      description: Object identifier
-                    name:
-                      type: string
-                      description: Object catalog name
-                    type:
-                      type: string
-                      description: Object type
-  /missions:
+                  $ref: '#/components/schemas/Object'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/missions/:
+    get:
+      tags: [Missions]
+      summary: List the current account's missions
+      operationId: listMissions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Missions owned by the authenticated account.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Mission'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/missions:
     post:
-      summary: Create mission
+      tags: [Missions]
+      summary: Create a mission
+      operationId: createMission
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                location:
-                  type: object
-                  properties:
-                    lat:
-                      type: number
-                      description: Latitude
-                    long:
-                      type: number
-                      description: Longitude
-                  required:
-                    - lat
-                    - long
-                  description: Point of observation
-                time:
-                  type: string
-                  description: Time of observation
-                objectives:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      oid:
-                        type: integer
-                        description: Object identifier
-                      name:
-                        type: string
-                        description: Selected object catalog identifier
-                  description: Mission objectives
-                conditions:
-                  type: object
-                  properties:
-                    limiting_magnitude:
-                      type: number
-                      description: Maximum observable stellar magnitude
-                  description: Mission conditions
+              $ref: '#/components/schemas/MissionData'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Mission created and queued for route generation.
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  mission_id:
-                    type: number
-                    description: Mission identifier
-                  objectives:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        name:
-                          type: string
-                          description: Selected object catalog identifier
-                        apparent_magnitude:
-                          type: number
-                          description: Object apparent stellar magnitude during observation
-                        status:
-                          type: string
-                          description: Object status during observation (Visible, Dim, Invisible)
-                    description: Validated mission objectives
-          headers:
-            X-Access-Token:
-              schema:
-                type: string
-              description: Mission access token used for further operations
-  /missions/{id}/process:
-    post:
-      summary: Process mission
-      parameters:
-        - name: id
-          description: Mission identifier
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: X-Access-Token
-          description: Mission access token
-          in: header
-          required: true
-          schema:
-            type: string
+                $ref: '#/components/schemas/CreateMissionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/missions/{mission_id}:
+    parameters:
+      - $ref: '#/components/parameters/MissionId'
+    get:
+      tags: [Missions]
+      summary: Get a mission
+      operationId: getMission
+      security:
+        - bearerAuth: []
+      description: The mission is accessible to its owner, or to any authenticated account when the mission is public.
       responses:
         '200':
-          description: OK
+          description: Mission details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mission'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    patch:
+      tags: [Missions]
+      summary: Update mission input data
+      operationId: updateMission
+      security:
+        - bearerAuth: []
+      description: Only the mission owner may update mission data. Updating the data queues route generation again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MissionData'
+      responses:
+        '204':
+          description: Mission updated successfully. No response body is returned.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags: [Missions]
+      summary: Delete a mission
+      operationId: deleteMission
+      security:
+        - bearerAuth: []
+      description: Only the mission owner may delete the mission.
+      responses:
+        '204':
+          description: Mission deleted successfully. No response body is returned.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/missions/{mission_id}/visibility:
+    parameters:
+      - $ref: '#/components/parameters/MissionId'
+    patch:
+      tags: [Missions]
+      summary: Update mission visibility
+      operationId: updateMissionVisibility
+      security:
+        - bearerAuth: []
+      description: Only the mission owner may change visibility. The boolean is supplied as a query parameter.
+      parameters:
+        - name: public
+          in: query
+          required: true
+          description: Whether the mission should be publicly viewable.
+          schema:
+            type: boolean
+          example: true
+      responses:
+        '204':
+          description: Visibility updated successfully. No response body is returned.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/missions/{mission_id}/stream:
+    parameters:
+      - $ref: '#/components/parameters/MissionId'
+    get:
+      tags: [Missions]
+      summary: Stream mission route-generation progress
+      operationId: streamMissionProgress
+      security:
+        - bearerAuth: []
+      description: |
+        Opens a Server-Sent Events stream. Events use the `message` event type.
+        Progress values currently emitted by the implementation are `building_route`, `done`, and `failed`.
+        A successful completion includes `payload`; a failure includes `error`.
+      responses:
+        '200':
+          description: Server-Sent Events stream.
           content:
             text/event-stream:
               schema:
-                type: object
-                properties:
-                  progress:
-                    type: string
-                    description: Processing stage
-                  payload:
-                    type: string
-                    description: Processing payload (mission map)
-  /missions/{id}/map:
-    post:
-      summary: Get mission map
-      parameters:
-        - name: id
-          description: Mission identifier
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: X-Access-Token
-          description: Mission access token
-          in: header
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: OK
-          content:
-            image/svg+xml:
-              schema:
-                type: string
-                format: binary
+                $ref: '#/components/schemas/MissionProgressEvent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+      description: Account secret key returned by POST /api/v1/accounts.
+
+  parameters:
+    MissionId:
+      name: mission_id
+      in: path
+      required: true
+      description: Mission UUID.
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    Object:
+      type: object
+      required:
+        - oid
+        - name
+        - type
+      properties:
+        oid:
+          type: integer
+          format: int64
+          description: Internal astronomical object identifier.
+        name:
+          type: string
+          description: Object identifier returned by the search index.
+        type:
+          type: string
+          description: Astronomical object type.
+      example:
+        oid: 7
+        name: Vega
+        type: delta Sct Variable
+
+    GeoLocation:
+      type: object
+      required:
+        - lat
+        - long
+      properties:
+        lat:
+          type: number
+          format: double
+          description: Geographic latitude in degrees.
+        long:
+          type: number
+          format: double
+          description: Geographic longitude in degrees.
+      example:
+        lat: 59.93428
+        long: 30.3351
+
+    Objective:
+      type: object
+      required:
+        - oid
+        - name
+      properties:
+        oid:
+          type: integer
+          format: int64
+        name:
+          type: string
+      example:
+        oid: 7
+        name: Vega
+
+    Conditions:
+      type: object
+      required:
+        - limiting_magnitude
+      properties:
+        limiting_magnitude:
+          type: number
+          format: float
+          description: Limiting apparent magnitude for the observation conditions.
+      example:
+        limiting_magnitude: 5.5
+
+    MissionData:
+      type: object
+      required:
+        - location
+        - time
+        - objectives
+        - conditions
+      properties:
+        location:
+          $ref: '#/components/schemas/GeoLocation'
+        time:
+          type: string
+          format: date-time
+          description: Observation date and time.
+        objectives:
+          type: array
+          items:
+            $ref: '#/components/schemas/Objective'
+        conditions:
+          $ref: '#/components/schemas/Conditions'
+      example:
+        location:
+          lat: 59.93428
+          long: 30.3351
+        time: '2026-09-04T20:00:00Z'
+        objectives:
+          - oid: 7
+            name: Vega
+          - oid: 8
+            name: Deneb
+        conditions:
+          limiting_magnitude: 5.5
+
+    Tour:
+      type: object
+      description: Route generated by the farthest-insertion algorithm. Field names reflect Go's default JSON serialization.
+      required:
+        - Order
+        - Distances
+      properties:
+        Order:
+          type: array
+          items:
+            type: integer
+            format: int32
+          description: Indices of objectives in route order.
+        Distances:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+              format: double
+          description: Pairwise angular-distance matrix in degrees.
+
+    MapData:
+      type: object
+      required:
+        - Tour
+      properties:
+        Tour:
+          $ref: '#/components/schemas/Tour'
+
+    Mission:
+      type: object
+      required:
+        - mission_id
+        - created_at
+      properties:
+        mission_id:
+          type: string
+          format: uuid
+        data:
+          allOf:
+            - $ref: '#/components/schemas/MissionData'
+          nullable: true
+        map_data:
+          allOf:
+            - $ref: '#/components/schemas/MapData'
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      description: Mission response returned by the API. `data` and `map_data` are omitted when their pointers are nil.
+
+    CreateMissionResponse:
+      type: object
+      required:
+        - mission_id
+      properties:
+        mission_id:
+          type: string
+          format: uuid
+
+    MissionProgressEvent:
+      type: object
+      required:
+        - progress
+      properties:
+        progress:
+          type: string
+          enum:
+            - building_route
+            - done
+            - failed
+        payload:
+          $ref: '#/components/schemas/MapData'
+        error:
+          type: string
+          description: Error message when progress is `failed`.
+      description: JSON object sent as the SSE message data. Each server-sent event uses event name `message`.
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+
+    UnauthorizedError:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          example: Authorization header is empty
+
+  responses:
+    BadRequest:
+      description: Invalid request or malformed mission_id.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing Authorization bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnauthorizedError'
+    Forbidden:
+      description: Authenticated account is not allowed to perform the operation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Mission does not exist or is private to another account.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnprocessableEntity:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: Internal server error. The current middleware returns an empty response body for unwrapped errors.

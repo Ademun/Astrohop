@@ -33,8 +33,8 @@ func (eq Equatorial) ToHorizontal(lst float64, lat float64) Horizontal {
 }
 
 type Horizontal struct {
-	Alt float64
-	Az  float64
+	Alt float64 `json:"alt"`
+	Az  float64 `json:"az"`
 }
 
 func (hr Horizontal) ToEquatorial(lst float64, lat float64) Equatorial {

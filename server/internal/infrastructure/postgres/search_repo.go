@@ -31,7 +31,7 @@ select oi.oid,
 from prepared_ids oids
          inner join data.object_index oi on oi.oid = oids.oid
 where oids.norm_id like '%' || $1 || '%'
-order by position($1, oids.norm_id),
+order by position($1 in oids.norm_id),
          strict_word_similarity($1, oids.norm_id) desc
 limit 20;
 `, name)
@@ -51,7 +51,7 @@ limit 20;
 }
 
 func (r *SearchRepo) GetObjectsNavData(ctx context.Context, oid []int64) ([]search.NavData, error) {
-	rows, err := r.m.GetExecutor(ctx).Query(ctx, `select ra, dec, apparent_mag from data.nav_data where oid = $1`, oid)
+	rows, err := r.m.GetExecutor(ctx).Query(ctx, `select ra, dec, apparent_mag from data.nav_data where oid = any($1) order by array_position($1, oid)`, oid)
 	if err != nil {
 		return nil, err
 	}

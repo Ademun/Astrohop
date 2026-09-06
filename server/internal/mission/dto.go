@@ -79,7 +79,8 @@ func (dto *DataDTO) ToDomain() *Data {
 }
 
 type MapDataDTO struct {
-	Tour *algo.Tour `json:"tour"`
+	Positions []coordinates.Horizontal `json:"positions"`
+	Tour      *algo.Tour               `json:"tour"`
 }
 
 func (md *MapData) ToDTO() *MapDataDTO {
@@ -87,7 +88,8 @@ func (md *MapData) ToDTO() *MapDataDTO {
 		return nil
 	}
 	return &MapDataDTO{
-		Tour: md.Tour,
+		Positions: md.Positions,
+		Tour:      md.Tour,
 	}
 }
 
@@ -96,7 +98,8 @@ func (dto *MapDataDTO) ToDomain() *MapData {
 		return nil
 	}
 	return &MapData{
-		Tour: dto.Tour,
+		Positions: dto.Positions,
+		Tour:      dto.Tour,
 	}
 }
 
