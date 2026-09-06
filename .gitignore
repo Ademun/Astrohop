@@ -1,5 +1,4 @@
 ingest
-client
 .env
 docker-compose.yml
 .venv
