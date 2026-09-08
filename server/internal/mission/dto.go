@@ -2,7 +2,6 @@ package mission
 
 import (
 	"astrohop/internal/astronomy/coordinates"
-	"astrohop/pkg/algo"
 	"time"
 
 	"github.com/google/uuid"
@@ -79,9 +78,9 @@ func (dto *DataDTO) ToDomain() *Data {
 }
 
 type MapDataDTO struct {
-	MoonPosition *coordinates.Horizontal          `json:"moon_position"`
+	MoonPosition coordinates.Horizontal           `json:"moon_position"`
 	Positions    map[int64]coordinates.Horizontal `json:"positions"`
-	Tour         *algo.Tour                       `json:"tour"`
+	Tour         []int64                          `json:"tour"`
 }
 
 func (md *MapData) ToDTO() *MapDataDTO {
@@ -89,8 +88,9 @@ func (md *MapData) ToDTO() *MapDataDTO {
 		return nil
 	}
 	return &MapDataDTO{
-		Positions: md.Positions,
-		Tour:      md.Tour,
+		MoonPosition: md.MoonPosition,
+		Positions:    md.Positions,
+		Tour:         md.Tour,
 	}
 }
 
@@ -99,8 +99,9 @@ func (dto *MapDataDTO) ToDomain() *MapData {
 		return nil
 	}
 	return &MapData{
-		Positions: dto.Positions,
-		Tour:      dto.Tour,
+		MoonPosition: dto.MoonPosition,
+		Positions:    dto.Positions,
+		Tour:         dto.Tour,
 	}
 }
 

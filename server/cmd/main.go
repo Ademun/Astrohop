@@ -2,7 +2,6 @@ package main
 
 import (
 	"astrohop/internal/account"
-	"astrohop/internal/astronomy/sol"
 	"astrohop/internal/infrastructure/postgres"
 	"astrohop/internal/mission"
 	"astrohop/internal/search"
@@ -20,7 +19,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/k0kubun/pp"
 )
 
 func main() {
@@ -61,9 +59,6 @@ func main() {
 		permDeleteMware,
 		errorMware,
 	)
-
-	ec, dist := sol.CalculateMoonPosition(time.Now())
-	pp.Println(ec.ToEquatorial(), dist)
 
 	srv := server.Server("0.0.0.0:8080")
 	go func() {

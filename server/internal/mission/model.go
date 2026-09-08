@@ -2,7 +2,6 @@ package mission
 
 import (
 	"astrohop/internal/astronomy/coordinates"
-	"astrohop/pkg/algo"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,8 +22,9 @@ type Data struct {
 }
 
 type MapData struct {
-	Positions map[int64]coordinates.Horizontal `db:"positions"`
-	Tour      *algo.Tour                       `db:"tour"`
+	MoonPosition coordinates.Horizontal
+	Positions    map[int64]coordinates.Horizontal
+	Tour         []int64
 }
 
 type Objective struct {

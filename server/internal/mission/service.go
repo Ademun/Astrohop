@@ -3,6 +3,7 @@ package mission
 import (
 	"astrohop/internal/astronomy/atime"
 	"astrohop/internal/astronomy/coordinates"
+	"astrohop/internal/astronomy/sol"
 	"astrohop/internal/search"
 	"astrohop/pkg/algo"
 	"astrohop/pkg/apperr"
@@ -152,27 +153,34 @@ func (s *Service) missionWorker(ctx context.Context, q chan missionTask) {
 
 				progressChan <- taskResult{Progress: taskBuildingRoute}
 
+				lst := atime.GetLocalSidereal(task.Data.Location, task.Data.Time)
 				objectives := task.Data.Objectives
 				objectOids := make([]int64, len(objectives))
 				for i, objective := range objectives {
 					objectOids[i] = objective.OID
 				}
+
 				objectStellarData, err := s.searchSvc.GetObjectsStellarData(ctx, objectOids)
+
 				positions := make(map[int64]coordinates.Horizontal, len(objectives))
 				for i, d := range objectStellarData {
-					positions[objectOids[i]] = d.EqCoords.ToHorizontal(atime.GetLocalSidereal(task.Data.Location, task.Data.Time), task.Data.Location.Lat)
+					positions[objectOids[i]] = d.EqCoords.ToHorizontal(lst, task.Data.Location.Lat)
 				}
 
-				tour, err := s.buildTour(ctx, objectStellarData)
+				tour, err := s.buildTour(objectOids, objectStellarData)
 				if err != nil {
 					progressChan <- taskResult{Progress: taskFailed, Error: err}
 					return
 				}
 
+				moonPosition, _ := sol.CalculateMoonPosition(task.Data.Time)
+
 				mapData := &MapData{
-					Positions: positions,
-					Tour:      tour,
+					MoonPosition: moonPosition.ToEquatorial().ToHorizontal(lst, task.Data.Location.Lat),
+					Positions:    positions,
+					Tour:         tour,
 				}
+
 				if err := s.missionRepo.UpdateMissionMapData(ctx, task.MissionID, mapData); err != nil {
 					progressChan <- taskResult{Progress: taskFailed, Error: err}
 					return
@@ -184,7 +192,7 @@ func (s *Service) missionWorker(ctx context.Context, q chan missionTask) {
 	}
 }
 
-func (s *Service) buildTour(ctx context.Context, stellarData []search.ObjectStellarData) (*algo.Tour, error) {
+func (s *Service) buildTour(objectOids []int64, stellarData []search.ObjectStellarData) ([]int64, error) {
 	distanceMtrx := make([][]float64, len(stellarData))
 	for i := range stellarData {
 		distanceMtrx[i] = make([]float64, len(stellarData))
@@ -196,6 +204,10 @@ func (s *Service) buildTour(ctx context.Context, stellarData []search.ObjectStel
 			distanceMtrx[j][i] = dist
 		}
 	}
-	tour := algo.UseFarthestInsertion(distanceMtrx)
+	order := algo.UseFarthestInsertion(distanceMtrx)
+	tour := make([]int64, len(objectOids))
+	for i, o := range order {
+		tour[i] = objectOids[o]
+	}
 	return tour, nil
 }

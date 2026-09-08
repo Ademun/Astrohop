@@ -1,11 +1,6 @@
 package algo
 
-type Tour struct {
-	Order     []int       `json:"order"`
-	Distances [][]float64 `json:"distances"`
-}
-
-func UseFarthestInsertion(distanceMtrx [][]float64) *Tour {
+func UseFarthestInsertion(distanceMtrx [][]float64) []int {
 	// list of distanceMtrx already in the route
 	seenNodes := make(map[int]struct{}, len(distanceMtrx))
 
@@ -73,10 +68,5 @@ func UseFarthestInsertion(distanceMtrx [][]float64) *Tour {
 		order[i] = cur
 	}
 
-	tour := &Tour{
-		Distances: distanceMtrx,
-		Order:     order,
-	}
-
-	return tour
+	return order
 }
