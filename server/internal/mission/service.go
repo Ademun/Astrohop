@@ -158,9 +158,9 @@ func (s *Service) missionWorker(ctx context.Context, q chan missionTask) {
 					objectOids[i] = objective.OID
 				}
 				objectStellarData, err := s.searchSvc.GetObjectsStellarData(ctx, objectOids)
-				positions := make([]coordinates.Horizontal, len(objectives))
+				positions := make(map[int64]coordinates.Horizontal, len(objectives))
 				for i, d := range objectStellarData {
-					positions[i] = d.EqCoords.ToHorizontal(atime.GetLocalSidereal(task.Data.Location, task.Data.Time), task.Data.Location.Lat)
+					positions[objectOids[i]] = d.EqCoords.ToHorizontal(atime.GetLocalSidereal(task.Data.Location, task.Data.Time), task.Data.Location.Lat)
 				}
 
 				tour, err := s.buildTour(ctx, objectStellarData)

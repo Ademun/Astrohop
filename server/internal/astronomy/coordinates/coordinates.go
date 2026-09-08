@@ -6,6 +6,7 @@ import (
 
 const RadToDeg = 180 / math.Pi
 const DegToRad = math.Pi / 180
+const Obliquity = 23.44 * DegToRad
 
 type Equatorial struct {
 	RA  float64 // In degrees
@@ -18,23 +19,23 @@ func (eq Equatorial) ToHorizontal(lst float64, lat float64) Horizontal {
 	hRad := h * DegToRad
 	decRad := eq.Dec * DegToRad
 
-	altRad := math.Asin(math.Sin(decRad)*math.Sin(latRad) + math.Cos(decRad)*math.Cos(latRad)*math.Cos(hRad))
-	y := -1 * math.Sin(hRad) * math.Cos(decRad) / math.Cos(altRad)
-	x := (math.Sin(decRad) - math.Sin(latRad)*math.Sin(altRad)) / (math.Cos(latRad) * math.Cos(altRad))
+	sinAlt := math.Sin(decRad)*math.Sin(latRad) + math.Cos(decRad)*math.Cos(latRad)*math.Cos(hRad)
+	sinAlt = math.Max(-1.0, math.Min(1.0, sinAlt))
+	altRad := math.Asin(sinAlt)
+	y := -1 * math.Sin(hRad) * math.Cos(decRad)
+	x := math.Sin(decRad) - math.Sin(latRad)*sinAlt
+
 	azRad := math.Atan2(y, x)
-	if azRad < 0 {
-		azRad += math.Pi * 2
-	}
 
 	return Horizontal{
 		Alt: altRad * RadToDeg,
-		Az:  azRad * RadToDeg,
+		Az:  NormDeg(azRad * RadToDeg),
 	}
 }
 
 type Horizontal struct {
-	Alt float64 `json:"alt"`
-	Az  float64 `json:"az"`
+	Alt float64 `json:"alt"` // In degrees
+	Az  float64 `json:"az"`  // In degrees
 }
 
 func (hr Horizontal) ToEquatorial(lst float64, lat float64) Equatorial {
@@ -42,17 +43,42 @@ func (hr Horizontal) ToEquatorial(lst float64, lat float64) Equatorial {
 	altRad := hr.Alt * DegToRad
 	azRad := hr.Az * DegToRad
 
-	decRad := math.Asin(math.Sin(altRad)*math.Sin(latRad) + math.Cos(altRad)*math.Cos(latRad)*math.Cos(azRad))
-	y := -1 * math.Sin(azRad) * math.Cos(altRad) / math.Cos(decRad)
-	x := (math.Sin(altRad) - math.Sin(decRad)*math.Sin(latRad)) / (math.Cos(decRad) * math.Cos(latRad))
+	sinDec := math.Sin(altRad)*math.Sin(latRad) + math.Cos(altRad)*math.Cos(latRad)*math.Cos(azRad)
+	sinDec = math.Max(-1.0, math.Min(1.0, sinDec))
+	decRad := math.Asin(sinDec)
+	y := -1 * math.Sin(azRad) * math.Cos(altRad)
+	x := math.Sin(altRad) - sinDec*math.Sin(latRad)
+
 	hRad := math.Atan2(y, x)
-	if hRad < 0 {
-		hRad += math.Pi * 2
-	}
 	h := hRad * RadToDeg / 15
-	ra := lst - h
+	ra := NormDeg((lst - h) * 15)
+
 	return Equatorial{
-		RA:  ra * 15,
+		RA:  ra,
+		Dec: decRad * RadToDeg,
+	}
+}
+
+type Ecliptic struct {
+	Lat  float64 // In degrees
+	Long float64 // In degrees
+}
+
+func (ec Ecliptic) ToEquatorial() Equatorial {
+	latRad := ec.Lat * DegToRad
+	longRad := ec.Long * DegToRad
+
+	sinDec := math.Sin(latRad)*math.Cos(Obliquity) + math.Cos(latRad)*math.Sin(Obliquity)*math.Sin(longRad)
+	sinDec = math.Max(-1.0, math.Min(1.0, sinDec))
+	decRad := math.Asin(sinDec)
+
+	y := math.Sin(longRad)*math.Cos(Obliquity) - math.Tan(latRad)*math.Sin(Obliquity)
+	x := math.Cos(longRad)
+
+	raRad := math.Atan2(y, x)
+
+	return Equatorial{
+		RA:  NormDeg(raRad * RadToDeg),
 		Dec: decRad * RadToDeg,
 	}
 }
@@ -67,5 +93,17 @@ func DistanceEq(a, b Equatorial) float64 {
 	decaRad := a.Dec * DegToRad
 	rabRad := b.RA * DegToRad
 	decbRad := b.Dec * DegToRad
-	return math.Acos(math.Sin(decaRad)*math.Sin(decbRad)+math.Cos(decaRad)*math.Cos(decbRad)*math.Cos(raaRad-rabRad)) * RadToDeg
+
+	cosDist := math.Sin(decaRad)*math.Sin(decbRad) + math.Cos(decaRad)*math.Cos(decbRad)*math.Cos(raaRad-rabRad)
+	cosDist = math.Max(-1.0, math.Min(1.0, cosDist))
+
+	return math.Acos(cosDist) * RadToDeg
+}
+
+func NormDeg(deg float64) float64 {
+	d := math.Mod(deg, 360.0)
+	if d < 0 {
+		d += 360.0
+	}
+	return d
 }
