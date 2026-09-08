@@ -36,7 +36,7 @@ export interface Horizontal {
 }
 
 export interface MapData {
-  positions: Horizontal[];
+  positions: Record<number, Horizontal>;
   tour: Tour;
 }
 

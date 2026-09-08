@@ -264,7 +264,7 @@ function labelFor(pos: Horizontal, index: number): string {
 }
 
 const points = computed(() =>
-  props.mapData.positions.map((pos, i) => ({
+  props.mapData.positions.map((oid, i) => ({
     index: i,
     key: `idx:${i}`,
     alt: pos.alt,
