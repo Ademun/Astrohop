@@ -52,7 +52,7 @@ onMounted(loadMissions)
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
+  <div class="mx-auto w-full max-w-9/10 px-4 py-8 sm:px-6 sm:py-12">
     <header class="mb-8">
       <h1 class="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
         Missions

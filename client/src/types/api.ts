@@ -25,19 +25,15 @@ export interface MissionData {
   conditions: Conditions;
 }
 
-export interface Tour {
-  order: number[];
-  distances: number[][];
-}
-
 export interface Horizontal {
   alt: number;
   az: number;
 }
 
 export interface MapData {
+  moon_position: Horizontal;
   positions: Record<number, Horizontal>;
-  tour: Tour;
+  tour: number[];
 }
 
 export interface Mission {
