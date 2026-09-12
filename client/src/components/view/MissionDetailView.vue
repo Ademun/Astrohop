@@ -4,6 +4,7 @@ import { getOrCreateAccountKey } from "@/lib/account";
 import { Mission } from "@/types/api";
 import { onMounted, onUnmounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import MissionStarMap from "../MissionStarMap.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -100,89 +101,121 @@ onUnmounted(() => progressController?.abort());
     </Alert>
 
     <template v-else-if="mission">
-      <header class="mb-8 font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-          Mission {{ dateFormatter.format(new Date(mission.created_at)) }}
+      <header
+        class="mb-8 font-heading text-2xl font-semibold tracking-tight sm:text-3xl"
+      >
+        Mission {{ dateFormatter.format(new Date(mission.created_at)) }}
       </header>
 
       <div
-        class="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] lg:items-start"
+        class="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] lg:items-stretch"
       >
-        <aside v-if="mission.data" class="space-y-4">
-          <div class="rounded-lg border border-border bg-card p-4">
-            <h2 class="text-sm font-medium text-muted-foreground">Location</h2>
-            <p class="mt-1">
-              {{ mission.data.location.lat }}, {{ mission.data.location.long }}
-            </p>
-          </div>
-
-          <div class="rounded-lg border border-border bg-card p-4">
-            <h2 class="text-sm font-medium text-muted-foreground">Time</h2>
-            <p class="mt-1">
-              {{ dateFormatter.format(new Date(mission.data.time)) }}
-            </p>
-          </div>
-
-          <div class="rounded-lg border border-border bg-card p-4">
-            <h2 class="text-sm font-medium text-muted-foreground">
-              Conditions
-            </h2>
-            <p class="mt-1">
-              Limiting magnitude
-              {{ mission.data.conditions.limiting_magnitude }}
-            </p>
-          </div>
-
-          <div class="rounded-lg border border-border bg-card p-4">
-            <h2 class="text-sm font-medium text-muted-foreground">
-              Objectives ({{ mission.data.objectives.length }})
-            </h2>
-            <ul
-              v-if="mission.data.objectives.length"
-              class="mt-2 max-h-64 space-y-1 overflow-y-auto"
-            >
-              <li
-                v-for="objective in mission.data.objectives"
-                :key="objective.oid"
+        <!-- Левая колонка: Единая карточка (данные + цели) -->
+        <aside v-if="mission.data" class="order-2 lg:order-1">
+          <div
+            class="flex h-full flex-col justify-between rounded-lg border border-border bg-card p-6 shadow-sm"
+          >
+            <!-- Верхний блок: Location, Time, Conditions -->
+            <div>
+              <h2
+                class="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
               >
-                {{ objective.name }}
-              </li>
-            </ul>
-            <p v-else class="mt-1 text-muted-foreground">No objectives set.</p>
+                Mission Details
+              </h2>
+              <div class="space-y-4 text-sm">
+                <div>
+                  <p class="text-muted-foreground">Location</p>
+                  <p class="font-medium">
+                    {{ mission.data.location.lat }},
+                    {{ mission.data.location.long }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">Time</p>
+                  <p class="font-medium">
+                    {{ dateFormatter.format(new Date(mission.data.time)) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">Conditions</p>
+                  <p class="font-medium">
+                    Limiting magnitude
+                    {{ mission.data.conditions.limiting_magnitude }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Нижний блок: Objectives в самом низу -->
+            <div class="mt-8 border-t border-border pt-6">
+              <h2
+                class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                Objectives ({{ mission.data.objectives.length }})
+              </h2>
+              <ul
+                v-if="mission.data.objectives.length"
+                class="space-y-2 text-sm"
+              >
+                <li
+                  v-for="objective in mission.data.objectives"
+                  :key="objective.oid"
+                >
+                  {{ objective.name }}
+                </li>
+              </ul>
+              <p v-else class="text-sm text-muted-foreground">
+                No objectives set.
+              </p>
+            </div>
           </div>
         </aside>
-        <p v-else class="text-muted-foreground">
-          This mission has no data yet.
-        </p>
 
-        <div>
-          <MissionStarMap
-            v-if="mission.data && mission.map_data"
-            :mission-data="mission.data"
-            :map-data="mission.map_data"
-          />
+        <!-- Если данных нет, показываем заглушку -->
+        <aside v-else class="order-2 lg:order-1">
+          <p class="text-muted-foreground">This mission has no data yet.</p>
+        </aside>
 
-          <div
-            v-else-if="isBuildingRoute"
-            class="flex items-center gap-2 rounded-lg border border-border bg-card p-4 text-muted-foreground"
-          >
-            <Spinner class="size-4" />
-            <span>Building the route…</span>
+        <!-- Правая колонка: Карта в такой же рамке -->
+        <div
+          class="order-1 lg:order-2 flex h-full items-center justify-center rounded-lg border border-border bg-card p-6 shadow-sm"
+        >
+          <div class="w-full max-w-4xl">
+            <MissionStarMap
+              v-if="mission.data && mission.map_data"
+              :mission="mission"
+            />
+
+            <div
+              v-else-if="isBuildingRoute"
+              class="flex items-center justify-center gap-2 py-12 text-muted-foreground"
+            >
+              <Spinner class="size-4" />
+              <span>Building the route…</span>
+            </div>
+
+            <Alert v-else-if="routeError" variant="destructive" class="w-full">
+              <AlertTitle>Route didn't build</AlertTitle>
+              <AlertDescription>
+                <p>{{ routeError }}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="mt-3"
+                  @click="startRouteStream"
+                >
+                  Try again
+                </Button>
+              </AlertDescription>
+            </Alert>
+
+            <p
+              v-else-if="!mission.data"
+              class="py-12 text-center text-muted-foreground"
+            >
+              This mission has no data yet.
+            </p>
           </div>
-
-          <Alert v-else-if="routeError" variant="destructive">
-            <AlertTitle>Route didn't build</AlertTitle>
-            <AlertDescription>
-              <p>{{ routeError }}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                class="mt-3"
-                @click="startRouteStream"
-              >
-                Try again
-              </Button>
-            </AlertDescription>
-          </Alert>
         </div>
       </div>
     </template>

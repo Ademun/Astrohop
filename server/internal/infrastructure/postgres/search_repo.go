@@ -51,7 +51,7 @@ limit 20;
 }
 
 func (r *SearchRepo) GetObjectsNavData(ctx context.Context, oid []int64) ([]search.NavData, error) {
-	rows, err := r.m.GetExecutor(ctx).Query(ctx, `select ra, dec, apparent_mag from data.nav_data where oid = any($1) order by array_position($1, oid)`, oid)
+	rows, err := r.m.GetExecutor(ctx).Query(ctx, `select long(pos) * 180.0 / pi() as ra, lat(pos) * 180.0 / pi() as dec, apparent_mag from data.nav_data where oid = any($1) order by array_position($1, oid)`, oid)
 	if err != nil {
 		return nil, err
 	}
