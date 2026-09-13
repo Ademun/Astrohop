@@ -36,7 +36,7 @@ function handleAction(item: NavItem) {
     :class="[
       'sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex',
       'transition-[width] duration-300 ease-in-out motion-reduce:transition-none',
-      collapsed ? 'w-[72px]' : 'w-64',
+      collapsed ? 'w-18' : 'w-52',
     ]"
   >
     <div
@@ -49,7 +49,7 @@ function handleAction(item: NavItem) {
           class="flex flex-1 justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
         >
           <span
-            class="font-heading text-2xl font-bold tracking-wide text-sidebar-foreground"
+            class="font-heading text-xl font-bold tracking-wide text-sidebar-foreground"
           >
             ASTROHOP
           </span>
@@ -62,7 +62,7 @@ function handleAction(item: NavItem) {
           aria-expanded="true"
           @click="toggleCollapsed"
         >
-          <X class="size-5" />
+          <X class="size-4" />
         </Button>
       </template>
 
