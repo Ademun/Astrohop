@@ -1,6 +1,10 @@
 package pairing
 
-import "time"
+import (
+	"time"
+
+	"github.com/gorilla/websocket"
+)
 
 type SessionStatus string
 
@@ -9,9 +13,17 @@ const (
 	StatusAwaitingAccount SessionStatus = "AWAITING_ACCOUNT"
 )
 
+type Role string
+
+const (
+	RoleSource Role = "SOURCE"
+	RoleTarget Role = "TARGET"
+)
+
 type Session struct {
-	SessionID string        `json:"session_id"`
-	Status    SessionStatus `json:"status"`
-	CreatedAt time.Time     `json:"created_at"`
-	ExpiresAt time.Time     `json:"expires_at"`
+	SourceConn *websocket.Conn
+	TargetConn *websocket.Conn
+	Status     SessionStatus `json:"status"`
+	CreatedAt  time.Time     `json:"created_at"`
+	ExpiresAt  time.Time     `json:"expires_at"`
 }
