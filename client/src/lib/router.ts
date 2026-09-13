@@ -8,7 +8,7 @@ const routes: RouteRecordRaw[] = [
   { path: "/", component: LandingPage },
   { path: "/missions", component: MissionsView },
   { path: "/missions/new", component: NewMissionWizard },
-  {path: "/missions/:id", component: MissionDetailView}
+  { path: "/missions/:id", component: MissionDetailView }
 ];
 
 export const router = createRouter({

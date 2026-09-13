@@ -48,7 +48,7 @@ func (s *Server) Server(addr string) *http.Server {
 
 func (s *Server) setupCors(r *gin.Engine) {
 	cfg := cors.DefaultConfig()
-	cfg.AllowOrigins = []string{"http://localhost:5173"}
+	cfg.AllowOrigins = []string{"http://localhost:5173", "http://192.168.1.109:5173"}
 	cfg.AddExposeHeaders("Authorization")
 	cfg.AddAllowHeaders("Authorization")
 	r.Use(cors.New(cfg))

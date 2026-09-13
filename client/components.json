@@ -1,6 +1,6 @@
 {
   "$schema": "https://shadcn-vue.com/schema.json",
-  "style": "reka-sera",
+  "style": "reka-nova",
   "font": "inter",
   "typescript": true,
   "tailwind": {
@@ -12,7 +12,7 @@
   },
   "iconLibrary": "lucide",
   "rtl": false,
-  "pointer": true,
+  "pointer": false,
   "aliases": {
     "components": "@/components",
     "utils": "@/lib/utils",

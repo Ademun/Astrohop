@@ -2,7 +2,6 @@ import StarMapLayer from "@/components/StarMapLayer.vue";
 import * as Types from "./types";
 import { h } from "vue";
 import { renderToString } from "vue/server-renderer";
-import { STYLE_BASE, STYLE_RED } from "./styles";
 
 const PAGE_W = 297;
 const PAGE_H = 210;

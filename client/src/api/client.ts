@@ -254,10 +254,4 @@ export class AstrohopClient {
   }
 }
 
-const apiAddr = import.meta.env.VITE_API_ADDR;
-
-if (!apiAddr) {
-  throw new Error("Missing API_ADDR: set VITE_API_ADDR");
-}
-
-export const apiClient = new AstrohopClient({ baseUrl: apiAddr });
+export const apiClient = new AstrohopClient({ baseUrl: "/server" });
