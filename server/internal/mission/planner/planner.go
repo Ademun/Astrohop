@@ -6,7 +6,6 @@ import (
 	"astrohop/internal/astronomy/sol"
 	"astrohop/internal/search"
 	"astrohop/pkg/algo"
-	"time"
 )
 
 func Build(in *Input) *Output {
