@@ -16,6 +16,7 @@ var kindToStatus = map[apperr.Kind]int{
 	apperr.KindUnauthorized: http.StatusUnauthorized,
 	apperr.KindConflict:     http.StatusConflict,
 	apperr.KindInternal:     http.StatusInternalServerError,
+	apperr.KindTimeout:      http.StatusGatewayTimeout,
 }
 
 func NewError(log *slog.Logger) gin.HandlerFunc {

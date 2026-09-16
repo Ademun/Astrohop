@@ -4,7 +4,6 @@ import (
 	"astrohop/internal/astronomy/coordinates"
 	"astrohop/pkg/apperr"
 	"context"
-	"net/http"
 	"strings"
 )
 
@@ -25,7 +24,7 @@ func (s *Service) SearchObjectsByName(ctx context.Context, name string) ([]Objec
 	norm := normalizeObjectName(name)
 	objects, err := s.repo.SearchObjectsByName(ctx, norm)
 	if err != nil {
-		return nil, apperr.New(http.StatusInternalServerError, "failed to find objects by name", err)
+		return nil, apperr.Internal(ErrSearch, "failed to search objects by name", err)
 	}
 	return objects, nil
 }
@@ -33,7 +32,7 @@ func (s *Service) SearchObjectsByName(ctx context.Context, name string) ([]Objec
 func (s *Service) GetObjectsStellarData(ctx context.Context, oid []int64) ([]ObjectStellarData, error) {
 	data, err := s.repo.GetObjectsNavData(ctx, oid)
 	if err != nil {
-		return nil, apperr.New(http.StatusInternalServerError, "failed to find object stellar data", err)
+		return nil, apperr.Internal(ErrGetObject, "failed to get objects nav data", err)
 	}
 	stellarData := make([]ObjectStellarData, len(data))
 	for i, obj := range data {

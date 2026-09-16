@@ -8,7 +8,6 @@ import (
 	"astrohop/pkg/algo"
 	"astrohop/pkg/apperr"
 	"context"
-	"net/http"
 
 	"github.com/google/uuid"
 )
@@ -49,42 +48,42 @@ func (s *Service) Start(ctx context.Context) {
 func (s *Service) CreateMission(ctx context.Context, data *Data, accountID int64) (uuid.UUID, error) {
 	missionID, err := s.missionRepo.CreateMission(ctx, data, accountID)
 	if err != nil {
-		return uuid.Nil, apperr.New(http.StatusInternalServerError, "mission.service: failed to create new mission", err)
+		return uuid.Nil, apperr.Internal(ErrCreateMission, "failed to create new mission", err)
 	}
 	task := missionTask{
 		MissionID: missionID,
 		Data:      data,
 	}
 	if err := s.pool.enqueueTask(task); err != nil {
-		return uuid.Nil, apperr.New(http.StatusInternalServerError, "mission.service: failed to enqueue task", err)
+		return uuid.Nil, apperr.Internal(ErrTaskQueue, "failed to enqueue task", err)
 	}
 	return missionID, nil
 }
 
 func (s *Service) UpdateMissionData(ctx context.Context, missionID uuid.UUID, data *Data) error {
 	if err := s.missionRepo.UpdateMissionData(ctx, missionID, data); err != nil {
-		return apperr.New(http.StatusInternalServerError, "mission.service: failed to update data", err)
+		return apperr.Internal(ErrUpdateMission, "failed to update mission data", err)
 	}
 	task := missionTask{
 		MissionID: missionID,
 		Data:      data,
 	}
 	if err := s.pool.enqueueTask(task); err != nil {
-		return apperr.New(http.StatusInternalServerError, "mission.service: failed to enqueue task", err)
+		return apperr.Internal(ErrTaskQueue, "failed to enqueue task", err)
 	}
 	return nil
 }
 
 func (s *Service) UpdateMissionVisibility(ctx context.Context, missionID uuid.UUID, isPublic bool) error {
 	if err := s.missionRepo.UpdateMissionVisibility(ctx, missionID, isPublic); err != nil {
-		return apperr.New(http.StatusInternalServerError, "mission.service: failed to update visibility", err)
+		return apperr.Internal(ErrUpdateMission, "failed to update mission visibility", err)
 	}
 	return nil
 }
 
 func (s *Service) DeleteMission(ctx context.Context, missionID uuid.UUID) error {
 	if err := s.missionRepo.DeleteMission(ctx, missionID); err != nil {
-		return apperr.New(http.StatusInternalServerError, "mission.service: failed to delete mission", err)
+		return apperr.Internal(ErrDeleteMission, "failed to delete mission", err)
 	}
 	return nil
 }
@@ -92,7 +91,7 @@ func (s *Service) DeleteMission(ctx context.Context, missionID uuid.UUID) error 
 func (s *Service) GetMission(ctx context.Context, id uuid.UUID) (*Mission, error) {
 	mission, err := s.missionRepo.GetMission(ctx, id)
 	if err != nil {
-		return nil, apperr.New(http.StatusInternalServerError, "mission.service: failed to get mission", err)
+		return nil, apperr.Internal(ErrGetMission, "failed to get mission", err)
 	}
 	return mission, nil
 }
@@ -100,7 +99,7 @@ func (s *Service) GetMission(ctx context.Context, id uuid.UUID) (*Mission, error
 func (s *Service) GetAccountMissions(ctx context.Context, accountID int64) ([]Mission, error) {
 	missions, err := s.missionRepo.GetAccountMissions(ctx, accountID)
 	if err != nil {
-		return nil, apperr.New(http.StatusInternalServerError, "mission.service: failed to get missions", err)
+		return nil, apperr.Internal(ErrGetMission, "failed to get account missions", err)
 	}
 	return missions, nil
 }
@@ -112,7 +111,7 @@ func (s *Service) GetMissionStream(ctx context.Context, id uuid.UUID) (<-chan ta
 
 	mission, err := s.missionRepo.GetMission(ctx, id)
 	if err != nil {
-		return nil, apperr.New(http.StatusInternalServerError, "mission.service: failed to get mission", err)
+		return nil, apperr.Internal(ErrGetMission, "failed to get mission task status stream", err)
 	}
 
 	if mission.MapData == nil {
@@ -122,7 +121,7 @@ func (s *Service) GetMissionStream(ctx context.Context, id uuid.UUID) (<-chan ta
 		}
 		if err := s.pool.enqueueTask(task); err != nil {
 			s.pool.setTaskProgressChan(id, nil)
-			return nil, apperr.New(http.StatusInternalServerError, "mission.service: failed to enqueue task", err)
+			return nil, apperr.Internal(ErrTaskQueue, "failed to enqueue task", err)
 		}
 		return s.pool.getTaskProgressChan(id), nil
 	}

@@ -56,7 +56,7 @@ func (h *Handler) HandleAttachTarget() gin.HandlerFunc {
 
 		_, key, err := conn.ReadMessage()
 		if err != nil {
-			closeWithError(conn, apperr.New(http.StatusBadRequest, "pairing.handler failed to read encryption key", err))
+			closeWithError(conn, apperr.Validation(ErrValidation, "failed to read encryption key", err))
 			return
 		}
 

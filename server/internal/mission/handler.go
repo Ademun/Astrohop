@@ -22,7 +22,7 @@ func (h *Handler) HandleCreateMission() gin.HandlerFunc {
 		accountID := c.GetInt64("account_id")
 		var json DataDTO
 		if err := c.ShouldBindJSON(&json); err != nil {
-			c.Error(apperr.New(http.StatusUnprocessableEntity, "invalid mission", err))
+			c.Error(apperr.Validation(ErrValidation, "invalid mission object", nil))
 			return
 		}
 
@@ -41,7 +41,7 @@ func (h *Handler) HandleUpdateMission() gin.HandlerFunc {
 		missionID := uuid.MustParse(c.GetString("mission_id"))
 		var json DataDTO
 		if err := c.ShouldBindJSON(&json); err != nil {
-			c.Error(apperr.New(http.StatusUnprocessableEntity, "invalid mission", err))
+			c.Error(apperr.Validation(ErrValidation, "invalid mission object", nil))
 			return
 		}
 		if err := h.svc.UpdateMissionData(c.Request.Context(), missionID, json.ToDomain()); err != nil {

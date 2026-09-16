@@ -11,6 +11,7 @@ const (
 	KindUnauthorized Kind = "unauthorized"
 	KindConflict     Kind = "conflict"
 	KindInternal     Kind = "internal"
+	KindTimeout      Kind = "timeout"
 )
 
 type Err struct {
@@ -39,3 +40,5 @@ func NotFound(code, msg string, err error) *Err   { return New(KindNotFound, cod
 func Forbidden(code, msg string, err error) *Err  { return New(KindForbidden, code, msg, err) }
 func Validation(code, msg string, err error) *Err { return New(KindValidation, code, msg, err) }
 func Internal(code, msg string, err error) *Err   { return New(KindInternal, code, msg, err) }
+func Conflict(code, msg string, err error) *Err   { return New(KindConflict, code, msg, err) }
+func Timeout(code, msg string, err error) *Err    { return New(KindTimeout, code, msg, err) }

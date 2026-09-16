@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"net"
-	"net/http"
 	"strings"
 	"time"
 
@@ -43,7 +42,7 @@ func (s *Service) StartPairing(ctx context.Context, conn *websocket.Conn) error 
 
 func (s *Service) AttachTarget(ctx context.Context, conn *websocket.Conn, sessionID string, encryptionKey string) error {
 	if strings.TrimSpace(encryptionKey) == "" {
-		return apperr.New(http.StatusUnprocessableEntity, "pairing.service encryption key is empty", nil)
+		return apperr.Validation(ErrKey, "encryption key is empty", nil)
 	}
 
 	if err := s.registry.Join(ctx, sessionID, conn); err != nil {
@@ -75,12 +74,12 @@ func regErr(err error) error {
 	case err == nil:
 		return nil
 	case errors.Is(err, ErrNotFound):
-		return apperr.New(http.StatusNotFound, "pairing.service session not found", err)
+		return apperr.NotFound(ErrSession, "session not found", err)
 	case errors.Is(err, ErrAlreadyJoined):
-		return apperr.New(http.StatusConflict, "pairing.service session already has a target", err)
+		return apperr.Conflict(ErrSession, "session was already joined", err)
 	case errors.As(err, &netErr) && netErr.Timeout():
-		return apperr.New(http.StatusGatewayTimeout, "pairing.service timed out waiting for peer", err)
+		return apperr.Timeout(ErrSession, "session timed out waiting for peer", err)
 	default:
-		return apperr.New(http.StatusInternalServerError, "pairing.service session registry error", err)
+		return apperr.Internal(ErrSession, "unknown session registry error", err)
 	}
 }

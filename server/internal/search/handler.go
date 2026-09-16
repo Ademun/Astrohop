@@ -2,7 +2,6 @@ package search
 
 import (
 	"astrohop/pkg/apperr"
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -20,13 +19,7 @@ func (h *Handler) HandleSearchObjectsByName() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Query("name")
 		if name == "" {
-			c.Error(
-				apperr.New(
-					http.StatusUnprocessableEntity,
-					"missing object name query param",
-					errors.New("missing object name query param"),
-				),
-			)
+			c.Error(apperr.Internal(ErrValidation, "missing object name query param", nil))
 			return
 		}
 
