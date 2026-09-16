@@ -3,6 +3,7 @@ package web
 import (
 	"astrohop/internal/account"
 	"astrohop/internal/mission"
+	"astrohop/internal/pairing"
 	"astrohop/internal/search"
 	"net/http"
 
@@ -14,6 +15,7 @@ type Server struct {
 	accountHandler                                                     *account.Handler
 	searchHandler                                                      *search.Handler
 	missionHandler                                                     *mission.Handler
+	pairingHandler                                                     *pairing.Handler
 	authMware, permViewMware, permEditMware, permDeleteMware, errMware gin.HandlerFunc
 }
 
@@ -21,12 +23,14 @@ func NewServer(
 	accountHandler *account.Handler,
 	searchHandler *search.Handler,
 	missionHandler *mission.Handler,
+	pairingHandler *pairing.Handler,
 	authMware, permViewMware, permEditMware, permDeleteMware, errMware gin.HandlerFunc,
 ) *Server {
 	return &Server{
 		accountHandler:  accountHandler,
 		searchHandler:   searchHandler,
 		missionHandler:  missionHandler,
+		pairingHandler:  pairingHandler,
 		authMware:       authMware,
 		permViewMware:   permViewMware,
 		permEditMware:   permEditMware,
@@ -65,4 +69,6 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 	r.PATCH("/api/v1/missions/:mission_id/visibility", s.authMware, s.permEditMware, s.missionHandler.HandleUpdateMissionVisibility())
 	r.DELETE("/api/v1/missions/:mission_id", s.authMware, s.permDeleteMware, s.missionHandler.HandleDeleteMission())
 	r.GET("/api/v1/missions/:mission_id/stream", s.authMware, s.permViewMware, s.missionHandler.HandleGetMissionStream())
+	r.GET("/api/v1/pairing", s.pairingHandler.HandleStartPairing())
+	r.GET("/api/v1/pairing/:req_id", s.pairingHandler.HandleAttachTarget())
 }

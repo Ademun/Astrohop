@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { Map, Galaxy } from '@lucide/vue'
+import { Map, Galaxy, Link2 } from '@lucide/vue'
 
 export interface NavItem {
   label: string
@@ -15,6 +15,7 @@ export interface FooterItem {
 export const primaryNavItems: NavItem[] = [
   { label: 'My missions', icon: Map, to: '/missions' },
   { label: 'Object registry', icon: Galaxy, to: '/objects' },
+  { label: 'Link devices', icon: Link2, to: '/pair'}
 ]
 
 export const footerNavItems: FooterItem[] = [

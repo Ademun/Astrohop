@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
-import { ChevronLeft, ChevronRight, Menu, X } from "@lucide/vue";
+import { ChevronLeft, ChevronRight, Link2, Menu, Router, X } from "@lucide/vue";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -10,7 +10,7 @@ import {
   type NavItem,
 } from "@/config/navigation";
 import NavList from "./NavList.vue";
-import LinkDevicesAction from "./LinkDevicesAction.vue";
+import NavLink from "./NavLink.vue";
 
 const collapsed = ref(false);
 const mobileOpen = ref(false);
@@ -40,7 +40,7 @@ watch(mobileOpen, async (open) => {
   if (!open) return;
   await nextTick();
   const firstFocusable = drawerRef.value?.querySelector<HTMLElement>(
-    'a, button, [tabindex]:not([tabindex="-1"])'
+    'a, button, [tabindex]:not([tabindex="-1"])',
   );
   (firstFocusable ?? drawerRef.value)?.focus();
 });
@@ -191,10 +191,6 @@ watch(mobileOpen, async (open) => {
             }
           "
         />
-
-        <Separator class="my-2 bg-sidebar-border" />
-
-        <LinkDevicesAction />
       </nav>
 
       <div class="flex flex-col gap-1 border-t border-sidebar-border p-3">

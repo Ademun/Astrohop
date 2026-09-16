@@ -26,6 +26,27 @@ export interface AstrohopClientOptions {
   fetchFn?: typeof fetch;
 }
 
+export interface StartPairingHandlers {
+  onRequestId?: (reqId: string) => void;
+  onEncryptionKey: (key: Uint8Array) => void;
+  onClose?: () => void;
+  onError?: (error: unknown) => void;
+}
+
+export interface JoinPairingHandlers {
+  onAccountKey: (encryptedAccountKey: Uint8Array) => void;
+  onClose?: () => void;
+  onError?: (error: unknown) => void;
+}
+
+export interface PairingSession {
+  close: () => void;
+}
+
+export interface SourcePairingSession extends PairingSession {
+  sendAccountKey: (encryptedAccountKey: Uint8Array) => void;
+}
+
 export class AstrohopClient {
   private baseUrl: string;
   private token: string | null;
@@ -47,6 +68,23 @@ export class AstrohopClient {
 
   private authHeaders(): Record<string, string> {
     return this.token ? { Authorization: `Bearer ${this.token}` } : {};
+  }
+
+  // WebSocket can't reuse authHeaders() — the browser API has no way
+  // to set an Authorization header on the handshake request at all,
+  // regardless of same-origin/CORS settings. baseUrl may be relative
+  // ("/server"), so resolve it against the page before swapping the
+  // scheme; a bare relative URL passed straight to `new WebSocket()`
+  // throws, since the resolved scheme has to be ws:/wss:, not http(s).
+  private wsUrl(path: string, params?: Record<string, string>): string {
+    const url = new URL(this.baseUrl + path, window.location.href);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        url.searchParams.set(key, value);
+      }
+    }
+    return url.toString();
   }
 
   private async request<T>(
@@ -251,6 +289,105 @@ export class AstrohopClient {
     })();
 
     return controller;
+  }
+
+  startPairing(handlers: StartPairingHandlers): SourcePairingSession {
+    if (!this.token) {
+      throw new ApiError(
+        401,
+        "Cannot start pairing without an authenticated session",
+        undefined,
+      );
+    }
+
+    const ws = new WebSocket(
+      this.wsUrl("/api/v1/pairing"),
+    );
+    ws.binaryType = "arraybuffer";
+
+    let stage: "reqId" | "encryptionKey" | "done" = "reqId";
+
+    ws.onmessage = (event) => {
+      const data = new Uint8Array(event.data as ArrayBuffer);
+      if (stage === "reqId") {
+        stage = "encryptionKey";
+        handlers.onRequestId?.(new TextDecoder().decode(data));
+        return;
+      }
+      if (stage === "encryptionKey") {
+        stage = "done";
+        handlers.onEncryptionKey(data);
+      }
+    };
+
+    ws.onerror = () => {
+      handlers.onError?.(new Error("Pairing connection failed"));
+    };
+
+    ws.onclose = (event) => {
+      if (event.code !== 1000 && stage !== "done") {
+        handlers.onError?.(
+          new ApiError(
+            event.code,
+            event.reason || "Pairing session closed unexpectedly",
+            undefined,
+          ),
+        );
+      }
+      handlers.onClose?.();
+    };
+
+    return {
+      sendAccountKey: (encryptedAccountKey: Uint8Array) => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          throw new Error(
+            "Cannot send account key: pairing socket is not open",
+          );
+        }
+        ws.send(encryptedAccountKey as Uint8Array<ArrayBuffer>);
+      },
+      close: () => ws.close(1000),
+    };
+  }
+
+  joinPairing(
+    reqId: string,
+    encryptionKey: Uint8Array,
+    handlers: JoinPairingHandlers,
+  ): PairingSession {
+    const ws = new WebSocket(
+      this.wsUrl(`/api/v1/pairing/${encodeURIComponent(reqId)}`),
+    );
+    ws.binaryType = "arraybuffer";
+
+    ws.onopen = () => {
+      ws.send(encryptionKey as Uint8Array<ArrayBuffer>);
+    };
+
+    let received = false;
+    ws.onmessage = (event) => {
+      received = true;
+      handlers.onAccountKey(new Uint8Array(event.data as ArrayBuffer));
+    };
+
+    ws.onerror = () => {
+      handlers.onError?.(new Error("Pairing connection failed"));
+    };
+
+    ws.onclose = (event) => {
+      if (event.code !== 1000 && !received) {
+        handlers.onError?.(
+          new ApiError(
+            event.code,
+            event.reason || "Pairing session closed unexpectedly",
+            undefined,
+          ),
+        );
+      }
+      handlers.onClose?.();
+    };
+
+    return { close: () => ws.close(1000) };
   }
 }
 

@@ -1,5 +1,15 @@
 const STYLE_BASE = `
   @page { size: A4 landscape; margin: 0; }
+  @media print {
+
+  html, body {
+    height:100%; 
+    margin: 0 !important; 
+    padding: 0 !important;
+    overflow: hidden;
+  }
+
+}
   html, body { margin: 0; padding: 0; }
   svg { display: block; }
 

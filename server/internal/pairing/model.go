@@ -1,16 +1,10 @@
 package pairing
 
 import (
+	"errors"
 	"time"
 
 	"github.com/gorilla/websocket"
-)
-
-type SessionStatus string
-
-const (
-	StatusAwaitingTarget  SessionStatus = "AWAITING_TARGET"
-	StatusAwaitingAccount SessionStatus = "AWAITING_ACCOUNT"
 )
 
 type Role string
@@ -20,10 +14,18 @@ const (
 	RoleTarget Role = "TARGET"
 )
 
+type SessionErr error
+
+var (
+	ErrExpired         SessionErr = errors.New("expired")
+	ErrNotFound        SessionErr = errors.New("not found")
+	ErrAlreadyJoined   SessionErr = errors.New("already joined")
+	ErrUnsupportedRole SessionErr = errors.New("unsupported role")
+)
+
 type Session struct {
 	SourceConn *websocket.Conn
 	TargetConn *websocket.Conn
-	Status     SessionStatus `json:"status"`
-	CreatedAt  time.Time     `json:"created_at"`
-	ExpiresAt  time.Time     `json:"expires_at"`
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
 }

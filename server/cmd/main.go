@@ -2,8 +2,10 @@ package main
 
 import (
 	"astrohop/internal/account"
+	"astrohop/internal/infrastructure/mem"
 	"astrohop/internal/infrastructure/postgres"
 	"astrohop/internal/mission"
+	"astrohop/internal/pairing"
 	"astrohop/internal/search"
 	"astrohop/internal/web"
 	"astrohop/internal/web/middleware"
@@ -43,6 +45,9 @@ func main() {
 	accountRepo := postgres.NewAccountRepo(infra.manager)
 	accountSvc := account.NewService(accountRepo)
 	accountHandler := account.NewHandler(accountSvc)
+	sessionRegistry := mem.NewSessionRegistry(log)
+	pairingSvc := pairing.NewService(sessionRegistry)
+	pairingHandler := pairing.NewHandler(pairingSvc)
 	authMware := middleware.NewAuth(accountRepo)
 	permViewMware := middleware.NewPermissions(accountRepo, middleware.ActionView)
 	permEditMware := middleware.NewPermissions(accountRepo, middleware.ActionEdit)
@@ -53,6 +58,7 @@ func main() {
 		accountHandler,
 		searchHandler,
 		missionHandler,
+		pairingHandler,
 		authMware,
 		permViewMware,
 		permEditMware,
