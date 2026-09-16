@@ -167,13 +167,13 @@ func (s *Service) missionWorker(ctx context.Context, q chan *Task) {
 			func() {
 				progressChan, err := s.taskQueue.GetTaskProgressChan(ctx, task.MissionID)
 				if err != nil {
-					//TOO: error handling
+					//TODO: error handling
 					return
 				}
 				defer func() {
 					err := s.taskQueue.SetTaskProgressChan(ctx, task.MissionID, nil)
 					if err != nil {
-						//TOO: error handling
+						//TODO: error handling
 						return
 					}
 					close(progressChan)
