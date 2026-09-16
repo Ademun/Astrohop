@@ -9,23 +9,6 @@ import (
 	"time"
 )
 
-type Objective struct {
-	OID     int64
-	Stellar search.ObjectStellarData
-}
-
-type Input struct {
-	Location   coordinates.GeoLocation
-	Time       time.Time
-	Objectives []Objective
-}
-
-type Output struct {
-	MoonPosition coordinates.Horizontal
-	Positions    map[int64]coordinates.Horizontal
-	Tour         []int64
-}
-
 func Build(in *Input) *Output {
 	lst := atime.GetLocalSidereal(in.Location, in.Time)
 
