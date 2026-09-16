@@ -1,11 +1,8 @@
 package mission
 
 import (
-	"astrohop/internal/astronomy/atime"
-	"astrohop/internal/astronomy/coordinates"
-	"astrohop/internal/astronomy/sol"
+	"astrohop/internal/mission/planner"
 	"astrohop/internal/search"
-	"astrohop/pkg/algo"
 	"astrohop/pkg/apperr"
 	"context"
 
@@ -184,32 +181,18 @@ func (s *Service) missionWorker(ctx context.Context, q chan *Task) {
 
 				progressChan <- TaskResult{Progress: taskBuildingRoute}
 
-				lst := atime.GetLocalSidereal(task.Data.Location, task.Data.Time)
-				objectives := task.Data.Objectives
-				objectOids := make([]int64, len(objectives))
-				for i, objective := range objectives {
-					objectOids[i] = objective.OID
-				}
-
-				objectStellarData, err := s.searchSvc.GetObjectsStellarData(ctx, objectOids)
-
-				positions := make(map[int64]coordinates.Horizontal, len(objectives))
-				for i, d := range objectStellarData {
-					positions[objectOids[i]] = d.EqCoords.ToHorizontal(lst, task.Data.Location.Lat)
-				}
-
-				tour, err := s.buildTour(objectOids, objectStellarData)
+				input, err := s.buildPlannerInput(ctx, task.Data)
 				if err != nil {
-					progressChan <- TaskResult{Progress: taskFailed, Error: err}
+					//TODO: error handling
 					return
 				}
 
-				moonPosition, _ := sol.CalculateMoonPosition(task.Data.Time)
+				output := planner.Build(input)
 
 				mapData := &MapData{
-					MoonPosition: moonPosition.ToEquatorial().ToHorizontal(lst, task.Data.Location.Lat),
-					Positions:    positions,
-					Tour:         tour,
+					MoonPosition: output.MoonPosition,
+					Positions:    output.Positions,
+					Tour:         output.Tour,
 				}
 
 				if err := s.missionRepo.UpdateMissionMapData(ctx, task.MissionID, mapData); err != nil {
@@ -223,22 +206,25 @@ func (s *Service) missionWorker(ctx context.Context, q chan *Task) {
 	}
 }
 
-func (s *Service) buildTour(objectOids []int64, stellarData []search.ObjectStellarData) ([]int64, error) {
-	distanceMtrx := make([][]float64, len(stellarData))
-	for i := range stellarData {
-		distanceMtrx[i] = make([]float64, len(stellarData))
+func (s *Service) buildPlannerInput(ctx context.Context, data *Data) (*planner.Input, error) {
+	oids := make([]int64, len(data.Objectives))
+	for i, o := range data.Objectives {
+		oids[i] = o.OID
 	}
-	for i := 0; i < len(stellarData)-1; i++ {
-		for j := i + 1; j < len(stellarData); j++ {
-			dist := coordinates.DistanceEq(stellarData[i].EqCoords, stellarData[j].EqCoords)
-			distanceMtrx[i][j] = dist
-			distanceMtrx[j][i] = dist
-		}
+
+	stellarData, err := s.searchSvc.GetObjectsStellarData(ctx, oids)
+	if err != nil {
+		return nil, err
 	}
-	order := algo.UseFarthestInsertion(distanceMtrx)
-	tour := make([]int64, len(objectOids))
-	for i, o := range order {
-		tour[i] = objectOids[o]
+
+	objectives := make([]planner.Objective, len(stellarData))
+	for i, d := range stellarData {
+		objectives[i] = planner.Objective{OID: oids[i], Stellar: d}
 	}
-	return tour, nil
+
+	return &planner.Input{
+		Location:   data.Location,
+		Time:       data.Time,
+		Objectives: objectives,
+	}, nil
 }
