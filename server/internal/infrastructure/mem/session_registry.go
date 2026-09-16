@@ -3,13 +3,13 @@ package mem
 import (
 	"astrohop/internal/pairing"
 	"context"
+	"errors"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/k0kubun/pp"
-	"go.uber.org/zap"
 )
 
 type entry struct {
@@ -19,12 +19,12 @@ type entry struct {
 }
 
 type SessionRegistry struct {
-	log      *zap.SugaredLogger
+	log      *slog.Logger
 	sessions map[string]*entry
 	lock     sync.RWMutex
 }
 
-func NewSessionRegistry(log *zap.SugaredLogger) *SessionRegistry {
+func NewSessionRegistry(log *slog.Logger) *SessionRegistry {
 	return &SessionRegistry{
 		log:      log,
 		sessions: make(map[string]*entry),
@@ -33,7 +33,6 @@ func NewSessionRegistry(log *zap.SugaredLogger) *SessionRegistry {
 
 func (s *SessionRegistry) Open(ctx context.Context, ttl time.Duration, conn *websocket.Conn) (string, error) {
 	id := uuid.New().String()
-	pp.Println(id)
 	e := &entry{
 		session: &pairing.Session{
 			SourceConn: conn,
@@ -46,7 +45,7 @@ func (s *SessionRegistry) Open(ctx context.Context, ttl time.Duration, conn *web
 	s.sessions[id] = e
 	e.timer = time.AfterFunc(ttl, func() {
 		if err := s.Close(context.Background(), id); err != nil {
-			s.log.Errorw("failed to expire pairing session", "session", id, "error", err)
+			s.log.Error("failed to expire pairing session", "session", id, "cause", err.Error())
 		}
 	})
 	s.lock.Unlock()
@@ -142,10 +141,11 @@ func (s *SessionRegistry) Close(ctx context.Context, sessionID string) error {
 	}
 
 	if len(errs) > 0 {
-		s.log.Errorw("errors while closing pairing session", "session", sessionID, "errors", errs)
+		s.log.Error("errors while closing pairing session", "session", sessionID, "cause", errors.Join(errs...).Error())
 	}
 	return nil
 }
+
 func (s *SessionRegistry) conn(sessionID string, role pairing.Role) (*websocket.Conn, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()

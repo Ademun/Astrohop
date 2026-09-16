@@ -14,8 +14,8 @@ import (
 	"astrohop/pkg/logger"
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -27,12 +27,13 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	log := logger.GetLogger()
+	log := logger.GetLogger(os.Stdout)
 	cfg := config.GetConfig()
 
 	infra, err := initInfra(ctx, cfg)
 	if err != nil {
-		log.Fatal(fmt.Errorf("failed to initialize infrastructure: %w", err))
+		log.Error("failed to initialize infrastructure", "cause", err.Error())
+		os.Exit(1)
 	}
 
 	searchRepo := postgres.NewSearchRepo(infra.manager)
@@ -69,19 +70,24 @@ func main() {
 	srv := server.Server("0.0.0.0:8080")
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("listen: %s\n", err)
+			log.Error("listen failed", "cause", err.Error())
+			os.Exit(1)
 		}
 	}()
 
 	<-ctx.Done()
-	log.Info("Shutting down...")
+	log.Info("shutting down")
+
 	ctxShutDown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
 	if err := srv.Shutdown(ctxShutDown); err != nil {
-		log.Fatalf("Server Shutdown: %v", err)
+		log.Error("server shutdown failed", "cause", err.Error())
+		os.Exit(1)
 	}
+
 	infra.manager.Pool.Close()
-	log.Info("Server exiting")
+	log.Info("server exiting")
 }
 
 type infrastructure struct {
@@ -90,13 +96,16 @@ type infrastructure struct {
 
 func initInfra(ctx context.Context, cfg *config.Config) (*infrastructure, error) {
 	var infra infrastructure
+
 	pool, err := pgxpool.New(ctx, cfg.Infra.DBConnectionString)
 	if err != nil {
 		return nil, err
 	}
+
 	if err := pool.Ping(ctx); err != nil {
 		return nil, err
 	}
+
 	infra.manager = db.NewManager(pool)
 	return &infra, nil
 }

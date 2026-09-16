@@ -1,15 +1,10 @@
 package logger
 
 import (
-	"go.uber.org/zap"
+	"io"
+	"log/slog"
 )
 
-func GetLogger() *zap.SugaredLogger {
-	log, _ := zap.NewDevelopment()
-	defer func() {
-		if err := log.Sync(); err != nil {
-			panic(err)
-		}
-	}()
-	return log.Sugar()
+func GetLogger(out io.Writer) *slog.Logger {
+	return slog.New(slog.NewJSONHandler(out, nil))
 }
