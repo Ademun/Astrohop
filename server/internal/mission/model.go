@@ -44,13 +44,13 @@ const (
 	taskFailed        taskProgress = "failed"
 )
 
-type taskResult struct {
+type TaskResult struct {
 	Progress taskProgress
 	Payload  *MapData
 	Error    error
 }
 
-type missionTask struct {
+type Task struct {
 	MissionID uuid.UUID
 	Data      *Data
 }

@@ -22,27 +22,40 @@ type Repo interface {
 	DeleteMission(ctx context.Context, missionID uuid.UUID) error
 }
 
+type TaskQueue interface {
+	Queue(ctx context.Context) (chan *Task, error)
+	Enqueue(ctx context.Context, task *Task) error
+	SetTaskProgressChan(ctx context.Context, missionID uuid.UUID, progress chan TaskResult) error
+	GetTaskProgressChan(ctx context.Context, missionID uuid.UUID) (chan TaskResult, error)
+}
+
 type Service struct {
 	missionRepo Repo
+	taskQueue   TaskQueue
 	searchSvc   *search.Service
-	pool        *pool
 }
 
 func NewService(
 	missionRepo Repo,
+	taskQueue TaskQueue,
 	searchSvc *search.Service,
 ) *Service {
 	return &Service{
 		searchSvc:   searchSvc,
 		missionRepo: missionRepo,
-		pool:        newPool(),
+		taskQueue:   taskQueue,
 	}
 }
 
-func (s *Service) Start(ctx context.Context) {
-	for range 5 {
-		go s.missionWorker(ctx, s.pool.Queue)
+func (s *Service) Start(ctx context.Context) error {
+	q, err := s.taskQueue.Queue(ctx)
+	if err != nil {
+		return err
 	}
+	for range 5 {
+		go s.missionWorker(ctx, q)
+	}
+	return nil
 }
 
 func (s *Service) CreateMission(ctx context.Context, data *Data, accountID int64) (uuid.UUID, error) {
@@ -50,11 +63,11 @@ func (s *Service) CreateMission(ctx context.Context, data *Data, accountID int64
 	if err != nil {
 		return uuid.Nil, apperr.Internal(ErrCreateMission, "failed to create new mission", err)
 	}
-	task := missionTask{
+	task := &Task{
 		MissionID: missionID,
 		Data:      data,
 	}
-	if err := s.pool.enqueueTask(task); err != nil {
+	if err := s.taskQueue.Enqueue(ctx, task); err != nil {
 		return uuid.Nil, apperr.Internal(ErrTaskQueue, "failed to enqueue task", err)
 	}
 	return missionID, nil
@@ -64,11 +77,11 @@ func (s *Service) UpdateMissionData(ctx context.Context, missionID uuid.UUID, da
 	if err := s.missionRepo.UpdateMissionData(ctx, missionID, data); err != nil {
 		return apperr.Internal(ErrUpdateMission, "failed to update mission data", err)
 	}
-	task := missionTask{
+	task := &Task{
 		MissionID: missionID,
 		Data:      data,
 	}
-	if err := s.pool.enqueueTask(task); err != nil {
+	if err := s.taskQueue.Enqueue(ctx, task); err != nil {
 		return apperr.Internal(ErrTaskQueue, "failed to enqueue task", err)
 	}
 	return nil
@@ -104,8 +117,13 @@ func (s *Service) GetAccountMissions(ctx context.Context, accountID int64) ([]Mi
 	return missions, nil
 }
 
-func (s *Service) GetMissionStream(ctx context.Context, id uuid.UUID) (<-chan taskResult, error) {
-	if ch := s.pool.getTaskProgressChan(id); ch != nil {
+func (s *Service) GetMissionStream(ctx context.Context, id uuid.UUID) (<-chan TaskResult, error) {
+	ch, err := s.taskQueue.GetTaskProgressChan(ctx, id)
+	if err != nil {
+		return nil, apperr.Internal(ErrTaskQueue, "failed to get task progress channel", err)
+	}
+
+	if ch != nil {
 		return ch, nil
 	}
 
@@ -115,20 +133,26 @@ func (s *Service) GetMissionStream(ctx context.Context, id uuid.UUID) (<-chan ta
 	}
 
 	if mission.MapData == nil {
-		task := missionTask{
+		task := &Task{
 			MissionID: id,
 			Data:      mission.Data,
 		}
-		if err := s.pool.enqueueTask(task); err != nil {
-			s.pool.setTaskProgressChan(id, nil)
+		if err := s.taskQueue.Enqueue(ctx, task); err != nil {
+			if err = s.taskQueue.SetTaskProgressChan(ctx, id, nil); err != nil {
+				return nil, apperr.Internal(ErrTaskQueue, "failed to set task progress chan", err)
+			}
 			return nil, apperr.Internal(ErrTaskQueue, "failed to enqueue task", err)
 		}
-		return s.pool.getTaskProgressChan(id), nil
+		ch, err := s.taskQueue.GetTaskProgressChan(ctx, id)
+		if err != nil {
+			return nil, apperr.Internal(ErrTaskQueue, "failed to get task progress channel", err)
+		}
+		return ch, nil
 	}
 
-	ch := make(chan taskResult)
+	ch = make(chan TaskResult)
 	go func() {
-		ch <- taskResult{
+		ch <- TaskResult{
 			Progress: taskDone,
 			Payload:  mission.MapData,
 		}
@@ -137,20 +161,28 @@ func (s *Service) GetMissionStream(ctx context.Context, id uuid.UUID) (<-chan ta
 	return ch, nil
 }
 
-func (s *Service) missionWorker(ctx context.Context, q chan missionTask) {
+func (s *Service) missionWorker(ctx context.Context, q chan *Task) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case task := <-q:
 			func() {
-				progressChan := s.pool.getTaskProgressChan(task.MissionID)
+				progressChan, err := s.taskQueue.GetTaskProgressChan(ctx, task.MissionID)
+				if err != nil {
+					//TOO: error handling
+					return
+				}
 				defer func() {
-					s.pool.setTaskProgressChan(task.MissionID, nil)
+					err := s.taskQueue.SetTaskProgressChan(ctx, task.MissionID, nil)
+					if err != nil {
+						//TOO: error handling
+						return
+					}
 					close(progressChan)
 				}()
 
-				progressChan <- taskResult{Progress: taskBuildingRoute}
+				progressChan <- TaskResult{Progress: taskBuildingRoute}
 
 				lst := atime.GetLocalSidereal(task.Data.Location, task.Data.Time)
 				objectives := task.Data.Objectives
@@ -168,7 +200,7 @@ func (s *Service) missionWorker(ctx context.Context, q chan missionTask) {
 
 				tour, err := s.buildTour(objectOids, objectStellarData)
 				if err != nil {
-					progressChan <- taskResult{Progress: taskFailed, Error: err}
+					progressChan <- TaskResult{Progress: taskFailed, Error: err}
 					return
 				}
 
@@ -181,11 +213,11 @@ func (s *Service) missionWorker(ctx context.Context, q chan missionTask) {
 				}
 
 				if err := s.missionRepo.UpdateMissionMapData(ctx, task.MissionID, mapData); err != nil {
-					progressChan <- taskResult{Progress: taskFailed, Error: err}
+					progressChan <- TaskResult{Progress: taskFailed, Error: err}
 					return
 				}
 
-				progressChan <- taskResult{Progress: taskDone, Payload: mapData}
+				progressChan <- TaskResult{Progress: taskDone, Payload: mapData}
 			}()
 		}
 	}
