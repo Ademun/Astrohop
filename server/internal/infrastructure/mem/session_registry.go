@@ -31,7 +31,7 @@ func NewSessionRegistry(log *slog.Logger) *SessionRegistry {
 	}
 }
 
-func (s *SessionRegistry) Open(ctx context.Context, ttl time.Duration, conn *websocket.Conn) (string, error) {
+func (s *SessionRegistry) Open(_ context.Context, ttl time.Duration, conn *websocket.Conn) (string, error) {
 	id := uuid.New().String()
 	e := &entry{
 		session: &pairing.Session{
@@ -53,7 +53,7 @@ func (s *SessionRegistry) Open(ctx context.Context, ttl time.Duration, conn *web
 	return id, nil
 }
 
-func (s *SessionRegistry) Join(ctx context.Context, sessionID string, conn *websocket.Conn) error {
+func (s *SessionRegistry) Join(_ context.Context, sessionID string, conn *websocket.Conn) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -104,7 +104,7 @@ func (s *SessionRegistry) Next(ctx context.Context, from pairing.Role, sessionID
 	return msg, nil
 }
 
-func (s *SessionRegistry) Close(ctx context.Context, sessionID string) error {
+func (s *SessionRegistry) Close(_ context.Context, sessionID string) error {
 	s.lock.Lock()
 	e, ok := s.sessions[sessionID]
 	if !ok {

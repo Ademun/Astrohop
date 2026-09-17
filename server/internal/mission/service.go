@@ -5,6 +5,8 @@ import (
 	"astrohop/internal/search"
 	"astrohop/pkg/apperr"
 	"context"
+	"log/slog"
+	"sync"
 
 	"github.com/google/uuid"
 )
@@ -20,39 +22,45 @@ type Repo interface {
 }
 
 type TaskQueue interface {
-	Queue(ctx context.Context) (chan *Task, error)
 	Enqueue(ctx context.Context, task *Task) error
-	SetTaskProgressChan(ctx context.Context, missionID uuid.UUID, progress chan TaskResult) error
-	GetTaskProgressChan(ctx context.Context, missionID uuid.UUID) (chan TaskResult, error)
+	Dequeue(ctx context.Context) (*Task, error)
+}
+
+type ProgressHub interface {
+	Pub(ctx context.Context, missionID uuid.UUID, progress TaskResult) error
+	Sub(ctx context.Context, missionID uuid.UUID) (<-chan TaskResult, func(), error)
+	Close(ctx context.Context, missionID uuid.UUID) error
 }
 
 type Service struct {
 	missionRepo Repo
 	taskQueue   TaskQueue
+	progressHub ProgressHub
 	searchSvc   *search.Service
+	inflight    sync.Map
+	log         *slog.Logger
 }
 
 func NewService(
 	missionRepo Repo,
 	taskQueue TaskQueue,
+	progressHub ProgressHub,
 	searchSvc *search.Service,
+	log *slog.Logger,
 ) *Service {
 	return &Service{
 		searchSvc:   searchSvc,
 		missionRepo: missionRepo,
 		taskQueue:   taskQueue,
+		progressHub: progressHub,
+		log:         log,
 	}
 }
 
-func (s *Service) Start(ctx context.Context) error {
-	q, err := s.taskQueue.Queue(ctx)
-	if err != nil {
-		return err
-	}
+func (s *Service) Start(ctx context.Context) {
 	for range 5 {
-		go s.missionWorker(ctx, q)
+		go s.missionWorker(ctx)
 	}
-	return nil
 }
 
 func (s *Service) CreateMission(ctx context.Context, data *Data, accountID int64) (uuid.UUID, error) {
@@ -114,96 +122,81 @@ func (s *Service) GetAccountMissions(ctx context.Context, accountID int64) ([]Mi
 	return missions, nil
 }
 
-func (s *Service) GetMissionStream(ctx context.Context, id uuid.UUID) (<-chan TaskResult, error) {
-	ch, err := s.taskQueue.GetTaskProgressChan(ctx, id)
-	if err != nil {
-		return nil, apperr.Internal(ErrTaskQueue, "failed to get task progress channel", err)
-	}
-
-	if ch != nil {
-		return ch, nil
-	}
-
+func (s *Service) GetMissionStream(ctx context.Context, id uuid.UUID) (<-chan TaskResult, func(), error) {
 	mission, err := s.missionRepo.GetMission(ctx, id)
 	if err != nil {
-		return nil, apperr.Internal(ErrGetMission, "failed to get mission task status stream", err)
+		return nil, nil, apperr.Internal(ErrGetMission, "failed to load mission", err)
 	}
 
-	if mission.MapData == nil {
-		task := &Task{
-			MissionID: id,
-			Data:      mission.Data,
-		}
-		if err := s.taskQueue.Enqueue(ctx, task); err != nil {
-			if err = s.taskQueue.SetTaskProgressChan(ctx, id, nil); err != nil {
-				return nil, apperr.Internal(ErrTaskQueue, "failed to set task progress chan", err)
-			}
-			return nil, apperr.Internal(ErrTaskQueue, "failed to enqueue task", err)
-		}
-		ch, err := s.taskQueue.GetTaskProgressChan(ctx, id)
-		if err != nil {
-			return nil, apperr.Internal(ErrTaskQueue, "failed to get task progress channel", err)
-		}
-		return ch, nil
+	ch, cancel, err := s.progressHub.Sub(ctx, id)
+	if err != nil {
+		return nil, nil, apperr.Internal(ErrProgressHub, "failed to subscribe", err)
 	}
 
-	ch = make(chan TaskResult)
-	go func() {
-		ch <- TaskResult{
-			Progress: taskDone,
-			Payload:  mission.MapData,
+	if mission.MapData != nil {
+		if err := s.progressHub.Pub(ctx, id, TaskResult{Progress: taskDone, Payload: mission.MapData}); err != nil {
+			cancel()
+			return nil, nil, apperr.Internal(ErrProgressHub, "failed to publish", err)
 		}
-		close(ch)
-	}()
-	return ch, nil
+		return ch, cancel, nil
+	}
+
+	if err := s.enqueue(ctx, &Task{MissionID: id, Data: mission.Data}); err != nil {
+		cancel()
+		return nil, nil, apperr.Internal(ErrTaskQueue, "failed to enqueue task", err)
+	}
+	return ch, cancel, nil
 }
 
-func (s *Service) missionWorker(ctx context.Context, q chan *Task) {
+func (s *Service) missionWorker(ctx context.Context) {
 	for {
-		select {
-		case <-ctx.Done():
-			return
-		case task := <-q:
-			func() {
-				progressChan, err := s.taskQueue.GetTaskProgressChan(ctx, task.MissionID)
-				if err != nil {
-					//TODO: error handling
-					return
-				}
-				defer func() {
-					err := s.taskQueue.SetTaskProgressChan(ctx, task.MissionID, nil)
-					if err != nil {
-						//TODO: error handling
-						return
-					}
-					close(progressChan)
-				}()
-
-				progressChan <- TaskResult{Progress: taskBuildingRoute}
-
-				input, err := s.buildPlannerInput(ctx, task.Data)
-				if err != nil {
-					//TODO: error handling
-					return
-				}
-
-				output := planner.Build(input)
-
-				mapData := &MapData{
-					MoonPosition: output.MoonPosition,
-					Positions:    output.Positions,
-					Tour:         output.Tour,
-				}
-
-				if err := s.missionRepo.UpdateMissionMapData(ctx, task.MissionID, mapData); err != nil {
-					progressChan <- TaskResult{Progress: taskFailed, Error: err}
-					return
-				}
-
-				progressChan <- TaskResult{Progress: taskDone, Payload: mapData}
-			}()
+		task, err := s.taskQueue.Dequeue(ctx)
+		if err != nil {
+			s.log.Error("mission worker: dequeue failed", "cause", err.Error())
+			continue
 		}
+		s.runTask(ctx, task)
 	}
+}
+
+func (s *Service) runTask(ctx context.Context, task *Task) {
+	defer s.inflight.Delete(task.MissionID)
+	defer func() {
+		if err := s.progressHub.Close(ctx, task.MissionID); err != nil {
+			s.log.Error("mission worker: close progress hub failed",
+				"mission", task.MissionID.String(), "cause", err.Error())
+		}
+	}()
+	defer func() {
+		if r := recover(); r != nil {
+			s.log.Error("mission worker: panic", "mission", task.MissionID.String(), "panic", r)
+		}
+	}()
+
+	s.publish(ctx, task.MissionID, TaskResult{Progress: taskBuildingRoute})
+
+	input, err := s.buildPlannerInput(ctx, task.Data)
+	if err != nil {
+		s.publish(ctx, task.MissionID, TaskResult{Progress: taskFailed, Error: err})
+		return
+	}
+
+	output := planner.Build(input)
+	mapData := &MapData{
+		MoonPosition: output.MoonPosition,
+		Positions:    output.Positions,
+		Tour:         output.Tour,
+	}
+
+	if err := s.missionRepo.UpdateMissionMapData(ctx, task.MissionID, mapData); err != nil {
+		s.publish(ctx, task.MissionID, TaskResult{
+			Progress: taskFailed,
+			Error:    apperr.Internal(ErrUpdateMission, "failed to persist map data", err),
+		})
+		return
+	}
+
+	s.publish(ctx, task.MissionID, TaskResult{Progress: taskDone, Payload: mapData})
 }
 
 func (s *Service) buildPlannerInput(ctx context.Context, data *Data) (*planner.Input, error) {
@@ -227,4 +220,22 @@ func (s *Service) buildPlannerInput(ctx context.Context, data *Data) (*planner.I
 		Time:       data.Time,
 		Objectives: objectives,
 	}, nil
+}
+
+func (s *Service) enqueue(ctx context.Context, t *Task) error {
+	if _, loaded := s.inflight.LoadOrStore(t.MissionID, struct{}{}); loaded {
+		return nil
+	}
+	if err := s.taskQueue.Enqueue(ctx, t); err != nil {
+		s.inflight.Delete(t.MissionID)
+		return err
+	}
+	return nil
+}
+
+func (s *Service) publish(ctx context.Context, id uuid.UUID, r TaskResult) {
+	if err := s.progressHub.Pub(ctx, id, r); err != nil {
+		s.log.Error("mission worker: publish failed",
+			"mission", id.String(), "cause", err.Error())
+	}
 }

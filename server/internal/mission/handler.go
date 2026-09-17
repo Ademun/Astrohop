@@ -106,11 +106,13 @@ func (h *Handler) HandleGetAccountMissions() gin.HandlerFunc {
 func (h *Handler) HandleGetMissionStream() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		missionID := uuid.MustParse(c.GetString("mission_id"))
-		stream, err := h.svc.GetMissionStream(c.Request.Context(), missionID)
+		stream, cancel, err := h.svc.GetMissionStream(c.Request.Context(), missionID)
 		if err != nil {
 			c.Error(err)
 			return
 		}
+		defer cancel()
+
 		c.Stream(func(w io.Writer) bool {
 			select {
 			case <-c.Request.Context().Done():
