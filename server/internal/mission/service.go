@@ -72,7 +72,7 @@ func (s *Service) CreateMission(ctx context.Context, data *Data, accountID int64
 		MissionID: missionID,
 		Data:      data,
 	}
-	if err := s.taskQueue.Enqueue(ctx, task); err != nil {
+	if err := s.enqueue(ctx, task); err != nil {
 		return uuid.Nil, apperr.Internal(ErrTaskQueue, "failed to enqueue task", err)
 	}
 	return missionID, nil
@@ -86,7 +86,7 @@ func (s *Service) UpdateMissionData(ctx context.Context, missionID uuid.UUID, da
 		MissionID: missionID,
 		Data:      data,
 	}
-	if err := s.taskQueue.Enqueue(ctx, task); err != nil {
+	if err := s.enqueue(ctx, task); err != nil {
 		return apperr.Internal(ErrTaskQueue, "failed to enqueue task", err)
 	}
 	return nil
