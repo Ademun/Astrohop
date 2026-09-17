@@ -4,9 +4,9 @@ import (
 	"astrohop/internal/account"
 	"context"
 	"net/http"
-	"uuid"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type Action string
