@@ -8,10 +8,10 @@ import (
 )
 
 type Mission struct {
-	MissionID uuid.UUID `db:"mission_id"`
-	Data      *Data     `db:"data"`
-	MapData   *MapData  `db:"map_data"`
-	CreatedAt time.Time `db:"created_at"`
+	MissionID uuid.UUID
+	Data      *Data
+	MapData   *MapData
+	CreatedAt time.Time
 }
 
 type Data struct {
@@ -28,8 +28,8 @@ type MapData struct {
 }
 
 type Objective struct {
-	OID  int64  `db:"oid"`
-	Name string `db:"name"`
+	OID  int64
+	Name string
 }
 
 type Conditions struct {
