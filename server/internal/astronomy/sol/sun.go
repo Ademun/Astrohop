@@ -22,7 +22,7 @@ func CalculateSunPosition(t time.Time) (*coordinates.Ecliptic, float64) {
 	omega := 125.04 - 1934.136*T
 	apparentLo := trueLo - 0.00569 - 0.00478*math.Sin(omega*coordinates.DegToRad)
 	return &coordinates.Ecliptic{
-		Long: apparentLo,
+		Long: coordinates.NormDeg(apparentLo),
 		Lat:  0, // Actually it is not exactly zero due to the action of moon and planets. However, such precision is not relevant in this application
 	}, R
 }
