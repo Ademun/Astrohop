@@ -3,38 +3,80 @@ package mission
 import (
 	"astrohop/internal/astronomy/coordinates"
 	"time"
-
-	"github.com/google/uuid"
 )
 
-type MissionDTO struct {
-	MissionID uuid.UUID   `json:"mission_id"`
-	Data      *DataDTO    `json:"data,omitempty"`
-	MapData   *MapDataDTO `json:"map_data,omitempty"`
-	CreatedAt time.Time   `json:"created_at"`
+// ---------- MissionFullDTO ----------
+
+type MissionFullDTO struct {
+	Information InformationDTO `json:"information"`
+	Data        DataDTO        `json:"data"`
+	Map         *MapDTO        `json:"map,omitempty"`
+	Overrides   *Overrides     `json:"overrides,omitempty"`
+	IsPublic    bool           `json:"is_public"`
+	CreatedAt   time.Time      `json:"created_at"`
+	ModifiedAt  *time.Time     `json:"modified_at,omitempty"`
 }
 
-func (m *Mission) ToDTO() *MissionDTO {
-	if m == nil {
-		return nil
+func NewMissionFullDTO(m *Mission) MissionFullDTO {
+	dto := MissionFullDTO{
+		Information: NewInformationDTO(&m.Information),
+		Data:        NewDataDTO(&m.Data),
+		Overrides:   m.Overrides,
+		IsPublic:    m.IsPublic,
+		CreatedAt:   m.CreatedAt,
+		ModifiedAt:  m.ModifiedAt,
 	}
-	return &MissionDTO{
-		MissionID: m.MissionID,
-		Data:      m.Data.ToDTO(),
-		MapData:   m.MapData.ToDTO(),
-		CreatedAt: m.CreatedAt,
+	if m.Map != nil {
+		dto.Map = NewMapDTO(m.Map)
+	}
+	return dto
+}
+
+func (d MissionFullDTO) ToDomain() *Mission {
+	m := &Mission{
+		Information: d.Information.ToDomain(),
+		Data:        *d.Data.ToDomain(),
+		Overrides:   d.Overrides,
+		IsPublic:    d.IsPublic,
+		CreatedAt:   d.CreatedAt,
+		ModifiedAt:  d.ModifiedAt,
+	}
+	if d.Map != nil {
+		m.Map = d.Map.ToDomain()
+	}
+	return m
+}
+
+type MissionShortDTO struct {
+	Information InformationDTO `json:"information"`
+	IsPublic    bool           `json:"is_public"`
+	CreatedAt   time.Time      `json:"created_at"`
+}
+
+func NewMissionShortDTO(m *Mission) MissionShortDTO {
+	return MissionShortDTO{
+		Information: NewInformationDTO(&m.Information),
+		IsPublic:    m.IsPublic,
+		CreatedAt:   m.CreatedAt,
 	}
 }
 
-func (dto *MissionDTO) ToDomain() *Mission {
-	if dto == nil {
-		return nil
+type InformationDTO struct {
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+}
+
+func NewInformationDTO(i *Information) InformationDTO {
+	return InformationDTO{
+		Name:        i.Name,
+		Description: i.Description,
 	}
-	return &Mission{
-		MissionID: dto.MissionID,
-		Data:      dto.Data.ToDomain(),
-		MapData:   dto.MapData.ToDomain(),
-		CreatedAt: dto.CreatedAt,
+}
+
+func (d InformationDTO) ToDomain() Information {
+	return Information{
+		Name:        d.Name,
+		Description: d.Description,
 	}
 }
 
@@ -45,63 +87,51 @@ type DataDTO struct {
 	Conditions ConditionsDTO           `json:"conditions"`
 }
 
-func (d *Data) ToDTO() *DataDTO {
-	if d == nil {
-		return nil
+func NewDataDTO(dt *Data) DataDTO {
+	objectives := make([]ObjectiveDTO, len(dt.Objectives))
+	for i := range dt.Objectives {
+		objectives[i] = NewObjectiveDTO(&dt.Objectives[i])
 	}
-	objectives := make([]ObjectiveDTO, len(d.Objectives))
-	for i, obj := range d.Objectives {
-		objectives[i] = obj.ToDTO()
+	return DataDTO{
+		Location:   dt.Location,
+		Time:       dt.Time,
+		Objectives: objectives,
+		Conditions: NewConditionsDTO(&dt.Conditions),
 	}
-	return &DataDTO{
+}
+
+func (d DataDTO) ToDomain() *Data {
+	objectives := make([]Objective, len(d.Objectives))
+	for i := range d.Objectives {
+		objectives[i] = *d.Objectives[i].ToDomain()
+	}
+	return &Data{
 		Location:   d.Location,
 		Time:       d.Time,
 		Objectives: objectives,
-		Conditions: d.Conditions.ToDTO(),
+		Conditions: *d.Conditions.ToDomain(),
 	}
 }
 
-func (dto *DataDTO) ToDomain() *Data {
-	if dto == nil {
-		return nil
-	}
-	objectives := make([]Objective, len(dto.Objectives))
-	for i, obj := range dto.Objectives {
-		objectives[i] = obj.ToDomain()
-	}
-	return &Data{
-		Location:   dto.Location,
-		Time:       dto.Time,
-		Objectives: objectives,
-		Conditions: dto.Conditions.ToDomain(),
-	}
-}
-
-type MapDataDTO struct {
+type MapDTO struct {
 	MoonPosition coordinates.Horizontal           `json:"moon_position"`
 	Positions    map[int64]coordinates.Horizontal `json:"positions"`
 	Tour         []int64                          `json:"tour"`
 }
 
-func (md *MapData) ToDTO() *MapDataDTO {
-	if md == nil {
-		return nil
-	}
-	return &MapDataDTO{
-		MoonPosition: md.MoonPosition,
-		Positions:    md.Positions,
-		Tour:         md.Tour,
+func NewMapDTO(m *Map) *MapDTO {
+	return &MapDTO{
+		MoonPosition: m.MoonPosition,
+		Positions:    m.Positions,
+		Tour:         m.Tour,
 	}
 }
 
-func (dto *MapDataDTO) ToDomain() *MapData {
-	if dto == nil {
-		return nil
-	}
-	return &MapData{
-		MoonPosition: dto.MoonPosition,
-		Positions:    dto.Positions,
-		Tour:         dto.Tour,
+func (d MapDTO) ToDomain() *Map {
+	return &Map{
+		MoonPosition: d.MoonPosition,
+		Positions:    d.Positions,
+		Tour:         d.Tour,
 	}
 }
 
@@ -110,32 +140,22 @@ type ObjectiveDTO struct {
 	Name string `json:"name" binding:"required"`
 }
 
-func (o Objective) ToDTO() ObjectiveDTO {
-	return ObjectiveDTO{
-		OID:  o.OID,
-		Name: o.Name,
-	}
+func NewObjectiveDTO(o *Objective) ObjectiveDTO {
+	return ObjectiveDTO{OID: o.OID, Name: o.Name}
 }
 
-func (dto ObjectiveDTO) ToDomain() Objective {
-	return Objective{
-		OID:  dto.OID,
-		Name: dto.Name,
-	}
+func (d ObjectiveDTO) ToDomain() *Objective {
+	return &Objective{OID: d.OID, Name: d.Name}
 }
 
 type ConditionsDTO struct {
-	LimitingMagnitude *float32 `json:"limiting_magnitude" binding:"required"`
+	LimitingMagnitude float32 `json:"limiting_magnitude"`
 }
 
-func (c Conditions) ToDTO() ConditionsDTO {
-	return ConditionsDTO{
-		LimitingMagnitude: &c.LimitingMagnitude,
-	}
+func NewConditionsDTO(c *Conditions) ConditionsDTO {
+	return ConditionsDTO{LimitingMagnitude: c.LimitingMagnitude}
 }
 
-func (dto ConditionsDTO) ToDomain() Conditions {
-	return Conditions{
-		LimitingMagnitude: *dto.LimitingMagnitude,
-	}
+func (d ConditionsDTO) ToDomain() *Conditions {
+	return &Conditions{LimitingMagnitude: d.LimitingMagnitude}
 }

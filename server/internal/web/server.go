@@ -12,11 +12,11 @@ import (
 )
 
 type Server struct {
-	accountHandler                                                     *account.Handler
-	searchHandler                                                      *search.Handler
-	missionHandler                                                     *mission.Handler
-	pairingHandler                                                     *pairing.Handler
-	authMware, permViewMware, permEditMware, permDeleteMware, errMware gin.HandlerFunc
+	accountHandler      *account.Handler
+	searchHandler       *search.Handler
+	missionHandler      *mission.Handler
+	pairingHandler      *pairing.Handler
+	authMware, errMware gin.HandlerFunc
 }
 
 func NewServer(
@@ -24,18 +24,15 @@ func NewServer(
 	searchHandler *search.Handler,
 	missionHandler *mission.Handler,
 	pairingHandler *pairing.Handler,
-	authMware, permViewMware, permEditMware, permDeleteMware, errMware gin.HandlerFunc,
+	authMware, errMware gin.HandlerFunc,
 ) *Server {
 	return &Server{
-		accountHandler:  accountHandler,
-		searchHandler:   searchHandler,
-		missionHandler:  missionHandler,
-		pairingHandler:  pairingHandler,
-		authMware:       authMware,
-		permViewMware:   permViewMware,
-		permEditMware:   permEditMware,
-		permDeleteMware: permDeleteMware,
-		errMware:        errMware,
+		accountHandler: accountHandler,
+		searchHandler:  searchHandler,
+		missionHandler: missionHandler,
+		pairingHandler: pairingHandler,
+		authMware:      authMware,
+		errMware:       errMware,
 	}
 }
 
@@ -63,12 +60,12 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 	r.POST("/api/v1/accounts", s.accountHandler.HandleCreateAccount())
 
 	r.POST("/api/v1/missions", s.authMware, s.missionHandler.HandleCreateMission())
+	r.GET("/api/v1/missions/:mission_id", s.authMware, s.missionHandler.HandleGetMission())
 	r.GET("/api/v1/missions", s.authMware, s.missionHandler.HandleGetAccountMissions())
-	r.GET("/api/v1/missions/:mission_id", s.authMware, s.permViewMware, s.missionHandler.HandleGetMission())
-	r.PATCH("/api/v1/missions/:mission_id", s.authMware, s.permEditMware, s.missionHandler.HandleUpdateMission())
-	r.PATCH("/api/v1/missions/:mission_id/visibility", s.authMware, s.permEditMware, s.missionHandler.HandleUpdateMissionVisibility())
-	r.DELETE("/api/v1/missions/:mission_id", s.authMware, s.permDeleteMware, s.missionHandler.HandleDeleteMission())
-	r.GET("/api/v1/missions/:mission_id/stream", s.authMware, s.permViewMware, s.missionHandler.HandleGetMissionStream())
+	r.GET("/api/v1/missions/:mission_id/stream", s.authMware, s.missionHandler.HandleGetMissionStream())
+	r.PATCH("/api/v1/missions/:mission_id/info", s.authMware, s.missionHandler.HandleUpdateMissionInformation())
+	r.PATCH("/api/v1/missions/:mission_id/data", s.authMware, s.missionHandler.HandleUpdateMissionData())
+	r.DELETE("/api/v1/missions/:mission_id", s.authMware, s.missionHandler.HandleDeleteMission())
 	r.GET("/api/v1/pairing", s.pairingHandler.HandleStartPairing())
 	r.GET("/api/v1/pairing/:req_id", s.pairingHandler.HandleAttachTarget())
 }

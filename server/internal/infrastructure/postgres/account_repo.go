@@ -26,20 +26,17 @@ func (r accountIDRow) ToDomain() int64 {
 }
 
 type accountMissionPermissions struct {
-	IsOwner         bool `db:"owner"`
-	IsMissionPublic bool `db:"is_public"`
+	IsOwner bool `db:"owner"`
 }
 
 func (r accountMissionPermissions) ToDomain() account.MissionPermissions {
 	return account.MissionPermissions{
-		IsOwner:         r.IsOwner,
-		IsMissionPublic: r.IsMissionPublic,
+		IsOwner: r.IsOwner,
 	}
 }
 
 func (r accountMissionPermissions) FromDomain(p account.MissionPermissions) {
 	r.IsOwner = p.IsOwner
-	r.IsMissionPublic = p.IsMissionPublic
 }
 
 func (r *AccountRepo) CreateAccount(ctx context.Context, key string) error {

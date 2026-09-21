@@ -52,9 +52,6 @@ func main() {
 	pairingSvc := pairing.NewService(sessionRegistry)
 	pairingHandler := pairing.NewHandler(pairingSvc)
 	authMware := middleware.NewAuth(accountRepo)
-	permViewMware := middleware.NewPermissions(accountRepo, middleware.ActionView)
-	permEditMware := middleware.NewPermissions(accountRepo, middleware.ActionEdit)
-	permDeleteMware := middleware.NewPermissions(accountRepo, middleware.ActionDelete)
 	errorMware := middleware.NewError(log)
 
 	server := web.NewServer(
@@ -63,9 +60,6 @@ func main() {
 		missionHandler,
 		pairingHandler,
 		authMware,
-		permViewMware,
-		permEditMware,
-		permDeleteMware,
 		errorMware,
 	)
 

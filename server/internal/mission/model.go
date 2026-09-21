@@ -8,10 +8,22 @@ import (
 )
 
 type Mission struct {
-	MissionID uuid.UUID
-	Data      *Data
-	MapData   *MapData
-	CreatedAt time.Time
+	MissionID         uuid.UUID
+	AccountID         int64
+	Information       Information
+	Data              Data
+	DataVersion       int
+	Map               *Map
+	SourceDataVersion *int
+	Overrides         *Overrides
+	IsPublic          bool
+	CreatedAt         time.Time
+	ModifiedAt        *time.Time
+}
+
+type Information struct {
+	Name        *string
+	Description *string
 }
 
 type Data struct {
@@ -21,7 +33,7 @@ type Data struct {
 	Conditions Conditions
 }
 
-type MapData struct {
+type Map struct {
 	MoonPosition coordinates.Horizontal
 	Positions    map[int64]coordinates.Horizontal
 	Tour         []int64
@@ -36,6 +48,16 @@ type Conditions struct {
 	LimitingMagnitude float32
 }
 
+type Overrides struct {
+}
+
+type action int
+
+const (
+	actionView action = iota
+	actionEdit
+)
+
 type taskProgress string
 
 const (
@@ -46,11 +68,12 @@ const (
 
 type TaskResult struct {
 	Progress taskProgress
-	Payload  *MapData
+	Payload  *Map
 	Error    error
 }
 
 type Task struct {
-	MissionID uuid.UUID
-	Data      *Data
+	MissionID   uuid.UUID
+	DataVersion int
+	Data        *Data
 }

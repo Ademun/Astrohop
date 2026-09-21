@@ -7,6 +7,5 @@ const (
 	ErrUpdateMission = "mission.update_mission"
 	ErrDeleteMission = "mission.delete_mission"
 	ErrTaskQueue     = "mission.task_queue"
-	ErrWorker        = "mission.worker"
 	ErrProgressHub   = "mission.progress_hub"
 )

@@ -46,16 +46,6 @@ func NewPermissions(repo PermissionsRepo, action Action) gin.HandlerFunc {
 			return
 		}
 
-		if !permissions.IsMissionPublic {
-			c.AbortWithStatus(http.StatusNotFound)
-			return
-		}
-
-		if action == ActionView {
-			c.Set("mission_id", missionID.String())
-			return
-		}
-
-		c.AbortWithStatus(http.StatusForbidden)
+		c.AbortWithStatus(http.StatusNotFound)
 	}
 }
