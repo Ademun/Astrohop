@@ -23,7 +23,7 @@ func (eq Equatorial) ToHorizontal(lst float64, lat float64) Horizontal {
 	sinAlt = math.Max(-1.0, math.Min(1.0, sinAlt))
 	altRad := math.Asin(sinAlt)
 	y := -1 * math.Sin(hRad) * math.Cos(decRad)
-	x := math.Sin(decRad) - math.Sin(latRad)*sinAlt
+	x := math.Sin(decRad) - math.Sin(latRad)*sinAlt/math.Cos(latRad)
 
 	azRad := math.Atan2(y, x)
 
@@ -47,7 +47,7 @@ func (hr Horizontal) ToEquatorial(lst float64, lat float64) Equatorial {
 	sinDec = math.Max(-1.0, math.Min(1.0, sinDec))
 	decRad := math.Asin(sinDec)
 	y := -1 * math.Sin(azRad) * math.Cos(altRad)
-	x := math.Sin(altRad) - sinDec*math.Sin(latRad)
+	x := math.Sin(altRad) - sinDec*math.Sin(latRad)/math.Cos(latRad)
 
 	hRad := math.Atan2(y, x)
 	h := hRad * RadToDeg / 15
@@ -62,6 +62,7 @@ func (hr Horizontal) ToEquatorial(lst float64, lat float64) Equatorial {
 type Ecliptic struct {
 	Lat  float64 // In degrees
 	Long float64 // In degrees
+	Dist float64 // Km
 }
 
 func (ec Ecliptic) ToEquatorial() Equatorial {
@@ -98,12 +99,4 @@ func DistanceEq(a, b Equatorial) float64 {
 	cosDist = math.Max(-1.0, math.Min(1.0, cosDist))
 
 	return math.Acos(cosDist) * RadToDeg
-}
-
-func NormDeg(deg float64) float64 {
-	d := math.Mod(deg, 360.0)
-	if d < 0 {
-		d += 360.0
-	}
-	return d
 }

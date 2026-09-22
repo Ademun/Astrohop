@@ -7,7 +7,9 @@ import (
 	"time"
 )
 
-func CalculateMoonPosition(t time.Time) (*coordinates.Ecliptic, float64) {
+const MeanMoonDistanceToEarthKm float64 = 384_400
+
+func CalculateMoonPosition(t time.Time) *coordinates.Ecliptic {
 	jd := atime.UTCToJulian(t)
 	T := (jd - 2451545.0) / 36525.0
 	T2 := T * T
@@ -76,7 +78,51 @@ func CalculateMoonPosition(t time.Time) (*coordinates.Ecliptic, float64) {
 	return &coordinates.Ecliptic{
 		Lat:  lat,
 		Long: coordinates.NormDeg(long),
-	}, dist
+		Dist: dist,
+	}
+}
+
+type MoonIllumination struct {
+	Magnitude           float64
+	LimbAngle           float64
+	IlluminatedFraction float64
+}
+
+func CalculateMoonIllumination(moonPos, sunPos *coordinates.Ecliptic, lst, lat float64) MoonIllumination {
+	lambdaM := moonPos.Long * coordinates.DegToRad
+	betaM := moonPos.Lat * coordinates.DegToRad
+	lambdaS := sunPos.Long * coordinates.DegToRad
+
+	cosPsi := math.Cos(betaM) * math.Cos(lambdaS-lambdaM)
+	cosI := -cosPsi
+	IRad := math.Acos(cosI)
+
+	k := (1 + cosI) / 2
+
+	moonEquatorial := moonPos.ToEquatorial()
+	parallactic := coordinates.ParallacticAngle(&moonEquatorial, lst, lat)
+	sunEquatorial := sunPos.ToEquatorial()
+
+	alpha := moonEquatorial.RA * coordinates.DegToRad
+	delta := moonEquatorial.Dec * coordinates.DegToRad
+	alpha0 := sunEquatorial.RA * coordinates.DegToRad
+	delta0 := sunEquatorial.Dec * coordinates.DegToRad
+
+	y := math.Cos(delta0) * math.Sin(alpha0-alpha)
+	x := math.Sin(delta0)*math.Cos(delta) - math.Cos(delta0)*math.Sin(delta)*math.Cos(alpha0-alpha)
+
+	chi := math.Atan2(y, x)*coordinates.RadToDeg - parallactic
+
+	magnitude := -12.73 + 1.49*math.Abs(IRad) + 0.043*math.Pow(IRad, 4)
+	flux := VBandMagnitudeToFlux(magnitude)
+	flux *= math.Pow(MeanMoonDistanceToEarthKm/moonPos.Dist, 2) * math.Max(1, 1.35-2.865*math.Abs(IRad))
+	magnitude = VBandFluxToMagnitude(flux)
+
+	return MoonIllumination{
+		Magnitude:           magnitude,
+		LimbAngle:           chi,
+		IlluminatedFraction: k,
+	}
 }
 
 // D	M	M'	F	l (10⁻⁶°)	r (10⁻³ km)
