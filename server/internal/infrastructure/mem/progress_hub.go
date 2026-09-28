@@ -84,7 +84,7 @@ type memSubscriber struct {
 
 func newMemSubscriber() *memSubscriber {
 	return &memSubscriber{
-		ch:   make(chan mission.TaskResult),
+		ch:   make(chan mission.TaskResult, 5),
 		done: make(chan struct{}),
 	}
 }

@@ -107,7 +107,7 @@ func (h *Handler) HandleGetMissionStream() gin.HandlerFunc {
 					return false
 				}
 				if progress.Payload != nil {
-					msg["payload"] = progress.Payload
+					msg["payload"] = NewMapDTO(progress.Payload)
 					c.SSEvent("message", msg)
 				}
 				return true

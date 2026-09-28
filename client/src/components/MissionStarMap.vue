@@ -27,6 +27,7 @@ const objectives = computed(() => props.mission.data?.objectives ?? []);
 const mapData = computed(() => props.mission.map_data ?? null);
 
 const points = computed<Skymap.Point[]>(() => {
+  console.log(mapData.value)
   const positions = mapData.value?.positions;
   if (!positions) return [];
   return objectives.value.flatMap((objective) => {

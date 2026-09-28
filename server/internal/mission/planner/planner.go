@@ -22,10 +22,10 @@ func Build(in *Input) *Output {
 
 	tour := buildTour(oids, stellar)
 
-	moonPosition, _ := sol.CalculateMoonPosition(in.Time)
+	moonData := sol.CalculateMoonPosition(in.Time)
 
 	return &Output{
-		MoonPosition: moonPosition.ToEquatorial().ToHorizontal(lst, in.Location.Lat),
+		MoonPosition: moonData.ToEquatorial().ToHorizontal(lst, in.Location.Lat),
 		Positions:    positions,
 		Tour:         tour,
 	}

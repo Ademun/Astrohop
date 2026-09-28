@@ -26,6 +26,8 @@ const props = withDefaults(defineProps<Props>(), {
   measurement: null,
 });
 
+console.log(props)
+
 const emit = defineEmits<{
   (e: "segmentClick", seg: Skymap.Segment): void;
 }>();
