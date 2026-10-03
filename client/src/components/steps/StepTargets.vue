@@ -20,7 +20,7 @@ const DEBOUNCE_MS = 300;
 const objectives = ref([...(props.modelValue.objectives ?? [])]);
 
 const query = ref("");
-const results = ref([]); // AstroObject[]
+const results = ref([]);
 const isSearching = ref(false);
 const searchError = ref("");
 const dropdownOpen = ref(false);
@@ -50,7 +50,8 @@ async function runSearch(name) {
   isSearching.value = true;
   searchError.value = "";
   try {
-    const found = await apiClient.searchObjects(name);
+    const found = await apiClient.searchCatalog(name);
+    console.log(found)
     if (token !== requestToken) return;
     results.value = found;
   } catch (err) {
@@ -69,8 +70,8 @@ function isSelected(oid) {
 function selectObject(obj) {
   // A repeat oid replaces the existing entry instead of duplicating it.
   objectives.value = [
-    ...objectives.value.filter((o) => o.oid !== obj.oid),
-    { oid: obj.oid, name: obj.name },
+    ...objectives.value.filter((o) => o.oid !== obj.id),
+    { oid: obj.id, name: obj.common_name },
   ];
   emitModel();
 
@@ -158,20 +159,20 @@ onBeforeUnmount(() => clearTimeout(debounceHandle));
         </p>
 
         <ul v-else class="max-h-64 overflow-y-auto py-1">
-          <li v-for="obj in results" :key="obj.oid">
+          <li v-for="obj in results" :key="obj.id">
             <button
               type="button"
               class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
               @mousedown.prevent="selectObject(obj)"
             >
               <span class="flex flex-col">
-                <span class="font-medium">{{ obj.name }}</span>
+                <span class="font-medium">{{ obj.common_name }}</span>
                 <span class="text-xs text-muted-foreground">{{
                   obj.type
                 }}</span>
               </span>
               <Check
-                v-if="isSelected(obj.oid)"
+                v-if="isSelected(obj.id)"
                 class="size-4 shrink-0 text-primary"
               />
             </button>

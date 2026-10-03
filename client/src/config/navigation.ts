@@ -14,7 +14,7 @@ export interface FooterItem {
 
 export const primaryNavItems: NavItem[] = [
   { label: 'My missions', icon: Map, to: '/missions' },
-  { label: 'Object registry', icon: Galaxy, to: '/objects' },
+  { label: 'Object catalog', icon: Galaxy, to: '/catalog' },
   { label: 'Link devices', icon: Link2, to: '/pair'}
 ]
 

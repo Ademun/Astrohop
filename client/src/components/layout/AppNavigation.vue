@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
-import { ChevronLeft, ChevronRight, Link2, Menu, Router, X } from "@lucide/vue";
+import { ChevronLeft, ChevronRight, Menu, X } from "@lucide/vue";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -10,7 +10,6 @@ import {
   type NavItem,
 } from "@/config/navigation";
 import NavList from "./NavList.vue";
-import NavLink from "./NavLink.vue";
 
 const collapsed = ref(false);
 const mobileOpen = ref(false);

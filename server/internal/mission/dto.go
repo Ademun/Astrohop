@@ -8,6 +8,7 @@ import (
 // ---------- MissionFullDTO ----------
 
 type MissionFullDTO struct {
+	ID          string         `json:"mission_id"`
 	Information InformationDTO `json:"information"`
 	Data        DataDTO        `json:"data"`
 	Map         *MapDTO        `json:"map,omitempty"`
@@ -19,6 +20,7 @@ type MissionFullDTO struct {
 
 func NewMissionFullDTO(m *Mission) MissionFullDTO {
 	dto := MissionFullDTO{
+		ID:          m.MissionID.String(),
 		Information: NewInformationDTO(&m.Information),
 		Data:        NewDataDTO(&m.Data),
 		Overrides:   m.Overrides,
@@ -48,6 +50,7 @@ func (d MissionFullDTO) ToDomain() *Mission {
 }
 
 type MissionShortDTO struct {
+	ID          string         `json:"mission_id"`
 	Information InformationDTO `json:"information"`
 	IsPublic    bool           `json:"is_public"`
 	CreatedAt   time.Time      `json:"created_at"`
@@ -55,6 +58,7 @@ type MissionShortDTO struct {
 
 func NewMissionShortDTO(m *Mission) MissionShortDTO {
 	return MissionShortDTO{
+		ID:          m.MissionID.String(),
 		Information: NewInformationDTO(&m.Information),
 		IsPublic:    m.IsPublic,
 		CreatedAt:   m.CreatedAt,

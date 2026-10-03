@@ -60,6 +60,7 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 	r.GET("/api/v1/catalog/collections/:id/objects", s.catalogHandler.HandleCollectionObjects())
 	r.GET("/api/v1/catalog/objects/:id", s.catalogHandler.HandleObject())
 	r.GET("/api/v1/catalog/objects/search", s.catalogHandler.HandleSearch())
+
 	r.POST("/api/v1/accounts", s.accountHandler.HandleCreateAccount())
 
 	r.POST("/api/v1/missions", s.authMware, s.missionHandler.HandleCreateMission())
