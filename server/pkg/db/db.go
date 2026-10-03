@@ -62,3 +62,24 @@ func (m *Manager) GetExecutor(ctx context.Context) Executor {
 	}
 	return tx
 }
+
+func (m *Manager) CollectRows[R any](ctx context.Context, sql string, args ...any) ([]R, error) {
+	rows, err := m.GetExecutor(ctx).Query(ctx, sql, args...)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowToStructByName[R])
+}
+
+func (m *Manager) CollectOne[R any](ctx context.Context, sql string, args ...any) (R, error) {
+	var zero R
+	rows, err := m.GetExecutor(ctx).Query(ctx, sql, args...)
+	if err != nil {
+		return zero, err
+	}
+	row, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[R])
+	if err != nil {
+		return zero, err
+	}
+	return row, err
+}

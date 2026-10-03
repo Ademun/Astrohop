@@ -4,12 +4,10 @@ import (
 	"astrohop/internal/astronomy/coordinates"
 	"astrohop/internal/catalog"
 	"astrohop/pkg/db"
+	"astrohop/pkg/utils"
 	"context"
 	"errors"
 	"fmt"
-	"strings"
-
-	"github.com/jackc/pgx/v5"
 )
 
 type CatalogRepo struct {
@@ -21,7 +19,7 @@ func NewCatalogRepo(m *db.Manager) *CatalogRepo {
 }
 
 func (r *CatalogRepo) Collections(ctx context.Context) ([]catalog.Collection, error) {
-	rows, err := collectRows[collectionRow](ctx, r.m, `
+	rows, err := r.m.CollectRows[collectionRow](ctx, `
 		select id, name, description
 		from catalog.collections
 		order by name
@@ -29,45 +27,11 @@ func (r *CatalogRepo) Collections(ctx context.Context) ([]catalog.Collection, er
 	if err != nil {
 		return nil, err
 	}
-	return mapSlice(rows, collectionRow.ToDomain), nil
-}
-
-func (r *CatalogRepo) CollectionObjects(ctx context.Context, id catalog.CollectionID, page catalog.PageRequest) (catalog.Page[catalog.CollectionMember], error) {
-	count, err := collectOne[totalRow](ctx, r.m, `
-		select total
-		from catalog.collection_object_counts_v
-		where collection_id = $1
-	`, id)
-	if err != nil {
-		return catalog.Page[catalog.CollectionMember]{}, err
-	}
-
-	res := catalog.Page[catalog.CollectionMember]{Total: count.Total}
-	if count.Total == 0 || page.Offset >= count.Total {
-		return res, nil
-	}
-
-	// Natural order: alphabetic prefix, then the first number numerically (M2 before M10).
-	rows, err := collectRows[collectionMemberRow](ctx, r.m, `
-		select object_id as id, class, common_name, identifier
-		from catalog.collection_object_details_v
-		where collection_id = $1
-		order by
-			(regexp_match(identifier, '^\D*'))[1],
-			coalesce((regexp_match(identifier, '\d+'))[1]::numeric, 0),
-			identifier
-		limit $2 offset $3
-	`, id, page.Limit, page.Offset)
-	if err != nil {
-		return catalog.Page[catalog.CollectionMember]{}, err
-	}
-
-	res.Items = mapSlice(rows, collectionMemberRow.ToDomain)
-	return res, nil
+	return utils.Map(rows, collectionRow.ToDomain), nil
 }
 
 func (r *CatalogRepo) Object(ctx context.Context, id catalog.ObjectID) (catalog.Object, error) {
-	row, err := collectOne[objectRow](ctx, r.m, `
+	row, err := r.m.CollectOne[objectRow](ctx, `
 		select * from catalog.object_full_v where id = $1
 	`, id)
 	if err != nil {
@@ -77,7 +41,7 @@ func (r *CatalogRepo) Object(ctx context.Context, id catalog.ObjectID) (catalog.
 }
 
 func (r *CatalogRepo) Positions(ctx context.Context, ids []catalog.ObjectID) ([]catalog.ObjectPosition, error) {
-	rows, err := collectRows[positionRow](ctx, r.m, `
+	rows, err := r.m.CollectRows[positionRow](ctx, `
 		select p.id, p.ra_rad, p.dec_rad
 		from unnest($1::bigint[]) with ordinality as req(id, ord)
 		join catalog.navigation_position_v p on p.id = req.id
@@ -101,19 +65,18 @@ func (r *CatalogRepo) Positions(ctx context.Context, ids []catalog.ObjectID) ([]
 		return nil, fmt.Errorf("%w: %v", catalog.ErrNotFound, missing)
 	}
 
-	return mapSlice(rows, positionRow.ToDomain), nil
+	return utils.Map(rows, positionRow.ToDomain), nil
 }
 
-var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
-
-func (r *CatalogRepo) Search(ctx context.Context, query string, limit int) ([]catalog.SearchHit, error) {
-	rows, err := collectRows[searchRow](ctx, r.m, `
+func (r *CatalogRepo) Search(ctx context.Context, request catalog.SearchRequest) ([]catalog.SearchHit, error) {
+	rows, err := r.m.CollectRows[searchRow](ctx, `
 		with q as (
-			select catalog.norm_ident($1) as v, catalog.norm_ident($2) as pat
+			select catalog.norm_ident($1) as v, catalog.norm_ident(catalog.escape_like($1)) as pat
 		)
 		select d.object_id as id, d.class, d.common_name, d.identifier, d.collection
 		from catalog.collection_object_details_v d, q
-		where d.identifier_norm like '%' || q.pat || '%'
+		where ($1::text is null or d.identifier_norm like '%' || q.pat || '%')
+		  and ($2::smallint is null or d.collection_id = $2::smallint)
 		order by
 			case
 				when d.identifier_norm = q.v then 0
@@ -122,16 +85,16 @@ func (r *CatalogRepo) Search(ctx context.Context, query string, limit int) ([]ca
 			end,
 			length(d.identifier),
 			d.identifier
-		limit $3
-	`, query, likeEscaper.Replace(query), limit)
+		limit $3 offset $4
+	`, request.Query, request.CollectionID, request.Limit, request.Offset)
 	if err != nil {
 		return nil, err
 	}
-	return mapSlice(rows, searchRow.ToDomain), nil
+	return utils.Map(rows, searchRow.ToDomain), nil
 }
 
 func (r *CatalogRepo) ConstellationByStar(ctx context.Context, id catalog.ObjectID) (*catalog.Constellation, error) {
-	row, err := collectOne[constellationIDRow](ctx, r.m, `
+	row, err := r.m.CollectOne[constellationIDRow](ctx, `
 		select constellation_id as id
 		from catalog.constellation_stars
 		where star_id = $1
@@ -151,7 +114,7 @@ func (r *CatalogRepo) ConstellationByStar(ctx context.Context, id catalog.Object
 }
 
 func (r *CatalogRepo) loadConstellations(ctx context.Context, id *int16) ([]catalog.Constellation, error) {
-	consts, err := collectRows[constellationRow](ctx, r.m, `
+	consts, err := r.m.CollectRows[constellationRow](ctx, `
 		select id, identifier_iau, identifier_common from catalog.constellations
 		where $1::smallint is null or id = $1
 		order by identifier_common
@@ -160,7 +123,7 @@ func (r *CatalogRepo) loadConstellations(ctx context.Context, id *int16) ([]cata
 		return nil, err
 	}
 
-	bounds, err := collectRows[boundaryRow](ctx, r.m, `
+	bounds, err := r.m.CollectRows[boundaryRow](ctx, `
 		select constellation_id, start_ra_rad, start_dec_rad, end_ra_rad, end_dec_rad
 		from catalog.constellation_boundary_v
 		where $1::smallint is null or constellation_id = $1
@@ -170,7 +133,7 @@ func (r *CatalogRepo) loadConstellations(ctx context.Context, id *int16) ([]cata
 		return nil, err
 	}
 
-	pattern, err := collectRows[patternRow](ctx, r.m, `
+	pattern, err := r.m.CollectRows[patternRow](ctx, `
 		select constellation_id, segment_no, id, ra_rad, dec_rad
 		from catalog.constellation_pattern_v
 		where $1::smallint is null or constellation_id = $1
@@ -210,35 +173,6 @@ func equatorial(raRad, decRad float64) coordinates.Equatorial {
 	return coordinates.NewEquatorial(raRad*coordinates.RadToDeg, decRad*coordinates.RadToDeg)
 }
 
-func mapSlice[R, T any](in []R, f func(R) T) []T {
-	out := make([]T, len(in))
-	for i, v := range in {
-		out[i] = f(v)
-	}
-	return out
-}
-
-func collectRows[R any](ctx context.Context, m *db.Manager, sql string, args ...any) ([]R, error) {
-	rows, err := m.GetExecutor(ctx).Query(ctx, sql, args...)
-	if err != nil {
-		return nil, err
-	}
-	return pgx.CollectRows(rows, pgx.RowToStructByName[R])
-}
-
-func collectOne[R any](ctx context.Context, m *db.Manager, sql string, args ...any) (R, error) {
-	var zero R
-	rows, err := m.GetExecutor(ctx).Query(ctx, sql, args...)
-	if err != nil {
-		return zero, err
-	}
-	row, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[R])
-	if errors.Is(err, pgx.ErrNoRows) {
-		return zero, catalog.ErrNotFound
-	}
-	return row, err
-}
-
 type objectRefRow struct {
 	ID         int64   `db:"id"`
 	Class      string  `db:"class"`
@@ -267,19 +201,6 @@ type collectionRow struct {
 
 func (r collectionRow) ToDomain() catalog.Collection {
 	return catalog.Collection{ID: catalog.CollectionID(r.ID), Name: r.Name, Description: r.Description}
-}
-
-type totalRow struct {
-	Total int `db:"total"`
-}
-
-type collectionMemberRow struct {
-	objectRefRow
-	Identifier string `db:"identifier"`
-}
-
-func (r collectionMemberRow) ToDomain() catalog.CollectionMember {
-	return catalog.CollectionMember{ObjectRef: r.objectRefRow.ToDomain(), Identifier: r.Identifier}
 }
 
 type searchRow struct {

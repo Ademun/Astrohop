@@ -57,7 +57,6 @@ func (s *Server) setupCors(r *gin.Engine) {
 
 func (s *Server) registerRoutes(r *gin.Engine) {
 	r.GET("/api/v1/catalog/collections", s.catalogHandler.HandleCollections())
-	r.GET("/api/v1/catalog/collections/:id/objects", s.catalogHandler.HandleCollectionObjects())
 	r.GET("/api/v1/catalog/objects/:id", s.catalogHandler.HandleObject())
 	r.GET("/api/v1/catalog/objects/search", s.catalogHandler.HandleSearch())
 

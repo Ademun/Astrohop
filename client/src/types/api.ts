@@ -1,9 +1,3 @@
-export interface AstroObject {
-    oid: number;
-    name: string;
-    type: string;
-}
-
 export interface GeoLocation {
     lat: number;
     long: number;
@@ -77,11 +71,8 @@ export interface Collection {
     description: string | null;
 }
 
-export interface CollectionMember extends ObjectRef {
+export interface SearchHit extends ObjectRef{
     identifier: string;
-}
-
-export interface SearchHit extends CollectionMember {
     collection: string;
 }
 
@@ -119,12 +110,9 @@ export interface CatalogObject {
     dso?: DsoData;
 }
 
-export interface Page<T> {
-    items: T[];
-    total: number;
-}
-
-export interface PageQuery {
+export interface SearchRequest {
+    query?: string;
+    collection?: number;
     limit: number;
     offset: number;
 }

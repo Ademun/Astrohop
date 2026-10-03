@@ -94,9 +94,11 @@ type Constellation struct {
 	Pattern [][]ObjectPosition
 }
 
-type PageRequest struct {
-	Limit  int // 0 means the default page size.
-	Offset int
+type SearchRequest struct {
+	Query        *string
+	CollectionID *CollectionID
+	Limit        int // 0 means the default page size.
+	Offset       int
 }
 
 type Page[T any] struct {

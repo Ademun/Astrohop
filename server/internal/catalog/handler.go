@@ -5,13 +5,8 @@ import (
 	"astrohop/pkg/utils"
 	"net/http"
 	"strconv"
-	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
-)
-
-const (
-	maxSearchQueryRuneCount = 50
 )
 
 type Handler struct {
@@ -43,29 +38,6 @@ func (h *Handler) HandleCollections() gin.HandlerFunc {
 	}
 }
 
-func (h *Handler) HandleCollectionObjects() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		id, ok := parseID(c)
-		if !ok {
-			return
-		}
-
-		var q CollectionObjectsQuery
-		if err := c.ShouldBindQuery(&q); err != nil {
-			_ = c.Error(apperr.Validation(ErrInvalidPage, "limit and offset must be integers", nil))
-			return
-		}
-
-		res, err := h.svc.CollectionObjects(c.Request.Context(), CollectionID(id), q.ToDomain())
-		if err != nil {
-			_ = c.Error(err)
-			return
-		}
-
-		c.JSON(http.StatusOK, newCollectionObjectsPageDTO(res))
-	}
-}
-
 func (h *Handler) HandleObject() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, ok := parseID(c)
@@ -85,13 +57,18 @@ func (h *Handler) HandleObject() gin.HandlerFunc {
 
 func (h *Handler) HandleSearch() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		q := c.Query("q")
-		if utf8.RuneCountInString(q) > maxSearchQueryRuneCount {
-			_ = c.Error(apperr.Validation(ErrSearchQueryTooLong, "search query is too long", nil))
+		var r SearchRequestDTO
+		if err := c.ShouldBindQuery(&r); err != nil {
+			_ = c.Error(apperr.Validation(ErrInvalidPage, "limit and offset must be integers", nil))
 			return
 		}
 
-		res, err := h.svc.Search(c.Request.Context(), q)
+		if r.Query == nil && r.Collection == nil {
+			_ = c.Error(apperr.Validation(ErrInvalidPage, "at least one parameter of query of collection should be not null", nil))
+			return
+		}
+
+		res, err := h.svc.Search(c.Request.Context(), r.ToDomain())
 		if err != nil {
 			_ = c.Error(err)
 			return

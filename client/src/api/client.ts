@@ -1,16 +1,13 @@
 import type {
-    AstroObject,
     ApiErrorBody,
     CatalogObject,
     Collection,
-    CollectionMember,
     CreateMissionResponse,
     Mission,
     MissionData,
     MissionProgressEvent,
-    Page,
-    PageQuery,
     SearchHit,
+    SearchRequest,
     UnauthorizedErrorBody,
 } from "@/types/api";
 
@@ -73,7 +70,7 @@ export class AstrohopClient {
     }
 
     private authHeaders(): Record<string, string> {
-        return this.token ? { Authorization: `Bearer ${this.token}` } : {};
+        return this.token ? {Authorization: `Bearer ${this.token}`} : {};
     }
 
     // WebSocket can't reuse authHeaders() — the browser API has no way
@@ -97,11 +94,11 @@ export class AstrohopClient {
         path: string,
         init: RequestInit & { expectBody?: boolean } = {},
     ): Promise<T> {
-        const { expectBody = true, ...requestInit } = init;
+        const {expectBody = true, ...requestInit} = init;
         const response = await this.fetchFn(`${this.baseUrl}${path}`, {
             ...requestInit,
             headers: {
-                ...(requestInit.body ? { "Content-Type": "application/json" } : {}),
+                ...(requestInit.body ? {"Content-Type": "application/json"} : {}),
                 ...this.authHeaders(),
                 ...(requestInit.headers ?? {}),
             },
@@ -111,7 +108,8 @@ export class AstrohopClient {
             let body: unknown = undefined;
             try {
                 body = await response.json();
-            } catch {}
+            } catch {
+            }
             const message =
                 (body as ApiErrorBody | UnauthorizedErrorBody | undefined) &&
                 ("error" in (body as any)
@@ -154,41 +152,15 @@ export class AstrohopClient {
 
         const token = authHeader.replace(/^Bearer\s+/i, "");
         this.token = token;
-        return { token };
-    }
-
-    async searchObjects(name: string): Promise<AstroObject[]> {
-        const query = new URLSearchParams({ name });
-        return this.request<AstroObject[]>(
-            `/api/v1/search/objects?${query.toString()}`,
-            {
-                method: "GET",
-            },
-        );
+        return {token};
     }
 
     async listCollections(signal?: AbortSignal): Promise<Collection[]> {
         const collections = await this.request<Collection[] | null>(
             "/api/v1/catalog/collections",
-            { method: "GET", signal },
+            {method: "GET", signal},
         );
         return collections ?? [];
-    }
-
-    async getCollectionObjects(
-        collectionId: number,
-        page: PageQuery,
-        signal?: AbortSignal,
-    ): Promise<Page<CollectionMember>> {
-        const query = new URLSearchParams({
-            limit: String(page.limit),
-            offset: String(page.offset),
-        });
-        const result = await this.request<Page<CollectionMember>>(
-            `/api/v1/catalog/collections/${collectionId}/objects?${query.toString()}`,
-            { method: "GET", signal },
-        );
-        return { ...result, items: result.items ?? [] };
     }
 
     async getCatalogObject(
@@ -201,17 +173,20 @@ export class AstrohopClient {
         });
     }
 
-    async searchCatalog(q: string, signal?: AbortSignal): Promise<SearchHit[]> {
-        const query = new URLSearchParams({ q });
+    async searchCatalog(r: SearchRequest, signal?: AbortSignal): Promise<SearchHit[]> {
+        const params = Object.entries(r).filter(
+            ([_, value]) => value !== undefined
+        );
+        const query = new URLSearchParams(params);
         const hits = await this.request<SearchHit[] | null>(
             `/api/v1/catalog/objects/search?${query.toString()}`,
-            { method: "GET", signal },
+            {method: "GET", signal},
         );
         return hits ?? [];
     }
 
     async listMissions(): Promise<Mission[]> {
-        return this.request<Mission[]>("/api/v1/missions", { method: "GET" });
+        return this.request<Mission[]>("/api/v1/missions", {method: "GET"});
     }
 
     async createMission(data: MissionData): Promise<CreateMissionResponse> {
@@ -255,10 +230,10 @@ export class AstrohopClient {
         missionId: string,
         isPublic: boolean,
     ): Promise<void> {
-        const query = new URLSearchParams({ public: String(isPublic) });
+        const query = new URLSearchParams({public: String(isPublic)});
         await this.request<void>(
             `/api/v1/missions/${encodeURIComponent(missionId)}/visibility?${query.toString()}`,
-            { method: "PATCH", expectBody: false },
+            {method: "PATCH", expectBody: false},
         );
     }
 
@@ -278,7 +253,7 @@ export class AstrohopClient {
                     `${this.baseUrl}/api/v1/missions/${encodeURIComponent(missionId)}/stream`,
                     {
                         method: "GET",
-                        headers: { ...this.authHeaders(), Accept: "text/event-stream" },
+                        headers: {...this.authHeaders(), Accept: "text/event-stream"},
                         signal: controller.signal,
                     },
                 );
@@ -287,7 +262,8 @@ export class AstrohopClient {
                     let body: unknown;
                     try {
                         body = await response.json();
-                    } catch {}
+                    } catch {
+                    }
                     throw new ApiError(
                         response.status,
                         `Stream request failed with status ${response.status}`,
@@ -300,10 +276,10 @@ export class AstrohopClient {
                 let buffer = "";
 
                 while (true) {
-                    const { done, value } = await reader.read();
+                    const {done, value} = await reader.read();
                     if (done) break;
 
-                    buffer += decoder.decode(value, { stream: true });
+                    buffer += decoder.decode(value, {stream: true});
 
                     let boundary: number;
                     while ((boundary = buffer.indexOf("\n\n")) !== -1) {
@@ -436,8 +412,8 @@ export class AstrohopClient {
             handlers.onClose?.();
         };
 
-        return { close: () => ws.close(1000) };
+        return {close: () => ws.close(1000)};
     }
 }
 
-export const apiClient = new AstrohopClient({ baseUrl: "/server" });
+export const apiClient = new AstrohopClient({baseUrl: "/server"});

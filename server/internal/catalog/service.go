@@ -4,22 +4,18 @@ import (
 	"astrohop/pkg/apperr"
 	"context"
 	"errors"
-	"fmt"
-	"strings"
 )
 
 const (
-	searchLimit     = 10
-	defaultPageSize = 50
-	maxPageSize     = 200
+	defaultSearchSize = 10
+	maxSearchSize     = 200
 )
 
 type Repo interface {
 	Collections(ctx context.Context) ([]Collection, error)
-	CollectionObjects(ctx context.Context, id CollectionID, page PageRequest) (Page[CollectionMember], error)
 	Object(ctx context.Context, id ObjectID) (Object, error)
 	Positions(ctx context.Context, ids []ObjectID) ([]ObjectPosition, error)
-	Search(ctx context.Context, query string, limit int) ([]SearchHit, error)
+	Search(ctx context.Context, request SearchRequest) ([]SearchHit, error)
 	ConstellationByStar(ctx context.Context, id ObjectID) (*Constellation, error)
 }
 
@@ -35,28 +31,6 @@ func (s *Service) Collections(ctx context.Context) ([]Collection, error) {
 	res, err := s.repo.Collections(ctx)
 	if err != nil {
 		return nil, apperr.Internal(ErrListCollections, "failed to list collections", err)
-	}
-	return res, nil
-}
-
-func (s *Service) CollectionObjects(ctx context.Context, id CollectionID, page PageRequest) (Page[CollectionMember], error) {
-	if page.Limit == 0 {
-		page.Limit = defaultPageSize
-	}
-	if page.Limit < 0 || page.Limit > maxPageSize || page.Offset < 0 {
-		return Page[CollectionMember]{}, apperr.Validation(
-			ErrInvalidPage,
-			fmt.Sprintf("limit must be between 1 and %d, offset must not be negative", maxPageSize),
-			nil,
-		)
-	}
-
-	res, err := s.repo.CollectionObjects(ctx, id, page)
-	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return Page[CollectionMember]{}, apperr.NotFound(ErrCollectionNotFound, "collection not found", err)
-		}
-		return Page[CollectionMember]{}, apperr.Internal(ErrCollectionObjects, "failed to get collection objects", err)
 	}
 	return res, nil
 }
@@ -86,12 +60,14 @@ func (s *Service) Positions(ctx context.Context, ids []ObjectID) ([]ObjectPositi
 	return res, nil
 }
 
-func (s *Service) Search(ctx context.Context, query string) ([]SearchHit, error) {
-	query = strings.TrimSpace(query)
-	if query == "" {
-		return nil, apperr.Validation(ErrSearchEmptyQuery, "search query must not be empty", nil)
+func (s *Service) Search(ctx context.Context, request SearchRequest) ([]SearchHit, error) {
+	if request.Limit <= 0 {
+		request.Limit = defaultSearchSize
 	}
-	hits, err := s.repo.Search(ctx, query, searchLimit)
+	if request.Limit > maxSearchSize {
+		request.Limit = maxSearchSize
+	}
+	hits, err := s.repo.Search(ctx, request)
 	if err != nil {
 		return nil, apperr.Internal(ErrSearch, "failed to search objects", err)
 	}

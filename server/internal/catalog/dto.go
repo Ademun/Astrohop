@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"astrohop/internal/astronomy/coordinates"
-	"astrohop/pkg/utils"
 )
 
 type ObjectRefDTO struct {
@@ -62,18 +61,15 @@ type ObjectDTO struct {
 	DSO      *DSODataDTO   `json:"dso,omitempty"`
 }
 
-type PageDTO[T any] struct {
-	Items []T `json:"items"`
-	Total int `json:"total"`
+type SearchRequestDTO struct {
+	Query      *string `form:"query"`
+	Collection *int64  `form:"collection"`
+	Limit      int     `form:"limit"`
+	Offset     int     `form:"offset"`
 }
 
-type CollectionObjectsQuery struct {
-	Limit  int `form:"limit"`
-	Offset int `form:"offset"`
-}
-
-func (q CollectionObjectsQuery) ToDomain() PageRequest {
-	return PageRequest{Limit: q.Limit, Offset: q.Offset}
+func (r SearchRequestDTO) ToDomain() SearchRequest {
+	return SearchRequest{Query: r.Query, CollectionID: (*CollectionID)(r.Collection), Limit: r.Limit, Offset: r.Offset}
 }
 
 func newObjectRefDTO(r ObjectRef) ObjectRefDTO {
@@ -89,13 +85,6 @@ func newCollectionDTO(c Collection) CollectionDTO {
 		ID:          int64(c.ID),
 		Name:        c.Name,
 		Description: c.Description,
-	}
-}
-
-func newCollectionMemberDTO(m CollectionMember) CollectionMemberDTO {
-	return CollectionMemberDTO{
-		ObjectRefDTO: newObjectRefDTO(m.ObjectRef),
-		Identifier:   m.Identifier,
 	}
 }
 
@@ -139,11 +128,4 @@ func newObjectDTO(o Object) ObjectDTO {
 		}
 	}
 	return dto
-}
-
-func newCollectionObjectsPageDTO(p Page[CollectionMember]) PageDTO[CollectionMemberDTO] {
-	return PageDTO[CollectionMemberDTO]{
-		Items: utils.Map(p.Items, newCollectionMemberDTO),
-		Total: p.Total,
-	}
 }
