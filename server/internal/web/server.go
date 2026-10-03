@@ -2,9 +2,9 @@ package web
 
 import (
 	"astrohop/internal/account"
+	"astrohop/internal/catalog"
 	"astrohop/internal/mission"
 	"astrohop/internal/pairing"
-	"astrohop/internal/search"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
@@ -13,7 +13,7 @@ import (
 
 type Server struct {
 	accountHandler      *account.Handler
-	searchHandler       *search.Handler
+	catalogHandler      *catalog.Handler
 	missionHandler      *mission.Handler
 	pairingHandler      *pairing.Handler
 	authMware, errMware gin.HandlerFunc
@@ -21,14 +21,14 @@ type Server struct {
 
 func NewServer(
 	accountHandler *account.Handler,
-	searchHandler *search.Handler,
+	catalogHandler *catalog.Handler,
 	missionHandler *mission.Handler,
 	pairingHandler *pairing.Handler,
 	authMware, errMware gin.HandlerFunc,
 ) *Server {
 	return &Server{
 		accountHandler: accountHandler,
-		searchHandler:  searchHandler,
+		catalogHandler: catalogHandler,
 		missionHandler: missionHandler,
 		pairingHandler: pairingHandler,
 		authMware:      authMware,
@@ -56,7 +56,10 @@ func (s *Server) setupCors(r *gin.Engine) {
 }
 
 func (s *Server) registerRoutes(r *gin.Engine) {
-	r.GET("/api/v1/search/objects", s.searchHandler.HandleSearchObjectsByName())
+	r.GET("/api/v1/catalog/collections", s.catalogHandler.HandleCollections())
+	r.GET("/api/v1/catalog/collections/:id/objects", s.catalogHandler.HandleCollectionObjects())
+	r.GET("/api/v1/catalog/objects/:id", s.catalogHandler.HandleObject())
+	r.GET("/api/v1/catalog/objects/search", s.catalogHandler.HandleSearch())
 	r.POST("/api/v1/accounts", s.accountHandler.HandleCreateAccount())
 
 	r.POST("/api/v1/missions", s.authMware, s.missionHandler.HandleCreateMission())

@@ -9,8 +9,12 @@ const DegToRad = math.Pi / 180
 const Obliquity = 23.44 * DegToRad
 
 type Equatorial struct {
-	RA  float64 // In degrees
-	Dec float64 // In degrees
+	RA  float64 // Right ascension in [0, 360).
+	Dec float64 // Declination in [-90, 90].
+}
+
+func NewEquatorial(ra float64, dec float64) Equatorial {
+	return Equatorial{ra, dec}
 }
 
 func (eq Equatorial) ToHorizontal(lst float64, lat float64) Horizontal {

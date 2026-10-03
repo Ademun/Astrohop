@@ -1,7 +1,7 @@
 package mission
 
 import (
-	"astrohop/internal/search"
+	"astrohop/internal/catalog"
 	"astrohop/pkg/apperr"
 	"context"
 	"log/slog"
@@ -38,7 +38,7 @@ type Service struct {
 	missionRepo Repo
 	taskQueue   TaskQueue
 	progressHub ProgressHub
-	searchSvc   *search.Service
+	catalogSvc  *catalog.Service
 	inflight    sync.Map
 	log         *slog.Logger
 }
@@ -47,11 +47,11 @@ func NewService(
 	missionRepo Repo,
 	taskQueue TaskQueue,
 	progressHub ProgressHub,
-	searchSvc *search.Service,
+	catalogSvc *catalog.Service,
 	log *slog.Logger,
 ) *Service {
 	return &Service{
-		searchSvc:   searchSvc,
+		catalogSvc:  catalogSvc,
 		missionRepo: missionRepo,
 		taskQueue:   taskQueue,
 		progressHub: progressHub,

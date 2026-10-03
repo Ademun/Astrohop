@@ -2,13 +2,13 @@ package planner
 
 import (
 	"astrohop/internal/astronomy/coordinates"
-	"astrohop/internal/search"
+	"astrohop/internal/catalog"
 	"time"
 )
 
 type Objective struct {
-	OID     int64
-	Stellar search.ObjectStellarData
+	OID      int64
+	Position catalog.ObjectPosition
 }
 
 type Input struct {

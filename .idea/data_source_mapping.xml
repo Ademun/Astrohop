@@ -15,5 +15,7 @@
     <file url="file://$APPLICATION_CONFIG_DIR$/consoles/db/56a9575d-16c6-4e52-939b-6131718cbb71/console_7.sql" value="56a9575d-16c6-4e52-939b-6131718cbb71" />
     <file url="file://$APPLICATION_CONFIG_DIR$/consoles/db/56a9575d-16c6-4e52-939b-6131718cbb71/console_8.sql" value="56a9575d-16c6-4e52-939b-6131718cbb71" />
     <file url="file://$APPLICATION_CONFIG_DIR$/consoles/db/56a9575d-16c6-4e52-939b-6131718cbb71/console_9.sql" value="56a9575d-16c6-4e52-939b-6131718cbb71" />
+    <file url="file://$PROJECT_DIR$/body_data/ingest/seed/collections.sql" value="56a9575d-16c6-4e52-939b-6131718cbb71" />
+    <file url="file://$PROJECT_DIR$/body_data/ingest/seed/types.sql" value="56a9575d-16c6-4e52-939b-6131718cbb71" />
   </component>
 </project>

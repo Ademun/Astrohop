@@ -2,11 +2,11 @@ package main
 
 import (
 	"astrohop/internal/account"
+	"astrohop/internal/catalog"
 	"astrohop/internal/infrastructure/mem"
 	"astrohop/internal/infrastructure/postgres"
 	"astrohop/internal/mission"
 	"astrohop/internal/pairing"
-	"astrohop/internal/search"
 	"astrohop/internal/web"
 	"astrohop/internal/web/middleware"
 	"astrohop/pkg/config"
@@ -36,13 +36,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	searchRepo := postgres.NewSearchRepo(infra.manager)
-	searchSvc := search.NewService(searchRepo)
-	searchHandler := search.NewHandler(searchSvc)
+	catalogRepo := postgres.NewCatalogRepo(infra.manager)
+	catalogSvc := catalog.NewService(catalogRepo)
+	catalogHandler := catalog.NewHandler(catalogSvc)
 	missionRepo := postgres.NewMissionRepo(infra.manager)
 	taskQueue := mem.NewTaskQueue()
 	progressHub := mem.NewProgressHub()
-	missionSvc := mission.NewService(missionRepo, taskQueue, progressHub, searchSvc, log)
+	missionSvc := mission.NewService(missionRepo, taskQueue, progressHub, catalogSvc, log)
 	missionSvc.Start(ctx)
 	missionHandler := mission.NewHandler(missionSvc)
 	accountRepo := postgres.NewAccountRepo(infra.manager)
@@ -56,7 +56,7 @@ func main() {
 
 	server := web.NewServer(
 		accountHandler,
-		searchHandler,
+		catalogHandler,
 		missionHandler,
 		pairingHandler,
 		authMware,

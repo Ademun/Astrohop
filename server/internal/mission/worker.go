@@ -1,6 +1,7 @@
 package mission
 
 import (
+	"astrohop/internal/catalog"
 	"context"
 
 	"astrohop/internal/mission/planner"
@@ -67,19 +68,19 @@ func (s *Service) runTask(ctx context.Context, task *Task) {
 }
 
 func (s *Service) buildPlannerInput(ctx context.Context, data *Data) (*planner.Input, error) {
-	oids := make([]int64, len(data.Objectives))
+	oids := make([]catalog.ObjectID, len(data.Objectives))
 	for i, o := range data.Objectives {
-		oids[i] = o.OID
+		oids[i] = catalog.ObjectID(o.OID)
 	}
 
-	stellarData, err := s.searchSvc.GetObjectsStellarData(ctx, oids)
+	positions, err := s.catalogSvc.Positions(ctx, oids)
 	if err != nil {
 		return nil, err
 	}
 
-	objectives := make([]planner.Objective, len(stellarData))
-	for i, d := range stellarData {
-		objectives[i] = planner.Objective{OID: oids[i], Stellar: d}
+	objectives := make([]planner.Objective, len(positions))
+	for i, p := range positions {
+		objectives[i] = planner.Objective{OID: int64(oids[i]), Position: p}
 	}
 
 	return &planner.Input{
