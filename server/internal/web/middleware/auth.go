@@ -25,7 +25,7 @@ func NewAuth(
 
 		id, err := repo.GetAccountIDByKey(c.Request.Context(), key)
 		if err != nil {
-			c.Error(err)
+			_ = c.Error(err)
 			c.Abort()
 			return
 		}

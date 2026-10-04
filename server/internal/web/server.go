@@ -4,7 +4,6 @@ import (
 	"astrohop/internal/account"
 	"astrohop/internal/catalog"
 	"astrohop/internal/mission"
-	"astrohop/internal/pairing"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
@@ -15,7 +14,6 @@ type Server struct {
 	accountHandler      *account.Handler
 	catalogHandler      *catalog.Handler
 	missionHandler      *mission.Handler
-	pairingHandler      *pairing.Handler
 	authMware, errMware gin.HandlerFunc
 }
 
@@ -23,14 +21,12 @@ func NewServer(
 	accountHandler *account.Handler,
 	catalogHandler *catalog.Handler,
 	missionHandler *mission.Handler,
-	pairingHandler *pairing.Handler,
 	authMware, errMware gin.HandlerFunc,
 ) *Server {
 	return &Server{
 		accountHandler: accountHandler,
 		catalogHandler: catalogHandler,
 		missionHandler: missionHandler,
-		pairingHandler: pairingHandler,
 		authMware:      authMware,
 		errMware:       errMware,
 	}
@@ -69,6 +65,4 @@ func (s *Server) registerRoutes(r *gin.Engine) {
 	r.PATCH("/api/v1/missions/:mission_id/info", s.authMware, s.missionHandler.HandleUpdateMissionInformation())
 	r.PATCH("/api/v1/missions/:mission_id/data", s.authMware, s.missionHandler.HandleUpdateMissionData())
 	r.DELETE("/api/v1/missions/:mission_id", s.authMware, s.missionHandler.HandleDeleteMission())
-	r.GET("/api/v1/pairing", s.pairingHandler.HandleStartPairing())
-	r.GET("/api/v1/pairing/:req_id", s.pairingHandler.HandleAttachTarget())
 }

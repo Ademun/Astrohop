@@ -5,8 +5,6 @@ import (
 	"time"
 )
 
-// ---------- MissionFullDTO ----------
-
 type MissionFullDTO struct {
 	ID          string         `json:"mission_id"`
 	Information InformationDTO `json:"information"`
@@ -32,21 +30,6 @@ func NewMissionFullDTO(m *Mission) MissionFullDTO {
 		dto.Map = NewMapDTO(m.Map)
 	}
 	return dto
-}
-
-func (d MissionFullDTO) ToDomain() *Mission {
-	m := &Mission{
-		Information: d.Information.ToDomain(),
-		Data:        *d.Data.ToDomain(),
-		Overrides:   d.Overrides,
-		IsPublic:    d.IsPublic,
-		CreatedAt:   d.CreatedAt,
-		ModifiedAt:  d.ModifiedAt,
-	}
-	if d.Map != nil {
-		m.Map = d.Map.ToDomain()
-	}
-	return m
 }
 
 type MissionShortDTO struct {
@@ -128,14 +111,6 @@ func NewMapDTO(m *Map) *MapDTO {
 		MoonPosition: m.MoonPosition,
 		Positions:    m.Positions,
 		Tour:         m.Tour,
-	}
-}
-
-func (d MapDTO) ToDomain() *Map {
-	return &Map{
-		MoonPosition: d.MoonPosition,
-		Positions:    d.Positions,
-		Tour:         d.Tour,
 	}
 }
 
