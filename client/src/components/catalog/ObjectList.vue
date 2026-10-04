@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Sparkles } from "@lucide/vue";
+import { Check, Sparkles } from "@lucide/vue";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
   EmptyContent,
   EmptyDescription,
   EmptyHeader,
+  EmptyMedia,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import RetryAlert from "@/components/catalog/RetryAlert.vue";
@@ -14,7 +15,7 @@ import type { SearchHit } from "@/types/api";
 
 const props = defineProps<{
   items: SearchHit[];
-  selectedId: number | null;
+  selectedIds: number[];
   loading: boolean;
   loadingMore: boolean;
   hasMore: boolean;
@@ -22,6 +23,7 @@ const props = defineProps<{
   emptyText: string;
   suggestions: string[];
   scoped?: boolean;
+  multiple?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -38,7 +40,9 @@ const showSkeleton = computed(() => props.loading && props.items.length === 0);
 const refreshing = computed(() => props.loading && props.items.length > 0);
 
 const tabbableIndex = computed(() => {
-  const selected = props.items.findIndex((item) => item.id === props.selectedId);
+  const selected = props.items.findIndex((item) =>
+      props.selectedIds.includes(item.id),
+  );
   return Math.min(
       focusIndex.value ?? Math.max(selected, 0),
       props.items.length - 1,
@@ -109,7 +113,7 @@ function moveFocus(event: KeyboardEvent, index: number) {
               type="button"
               :data-class="item.class"
               :tabindex="index === tabbableIndex ? 0 : -1"
-              :aria-pressed="item.id === selectedId"
+              :aria-pressed="selectedIds.includes(item.id)"
               class="group relative flex min-h-14 w-full items-center justify-between gap-3 rounded-lg px-4 py-2 text-left transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-accent"
               @click="emit('select', item)"
               @focus="focusIndex = index"
@@ -130,11 +134,20 @@ function moveFocus(event: KeyboardEvent, index: number) {
                 {{ subtitle(item) }}
               </span>
             </span>
-            <span
-                v-if="!scoped"
-                class="shrink-0 text-xs uppercase tracking-wide text-muted-foreground"
-            >
-              {{ item.class }}
+            <span class="flex shrink-0 items-center gap-3">
+              <span
+                  v-if="!scoped"
+                  class="text-xs uppercase tracking-wide text-muted-foreground"
+              >
+                {{ item.class }}
+              </span>
+              <span
+                  v-if="multiple"
+                  aria-hidden="true"
+                  class="flex size-5 items-center justify-center rounded-full border border-border text-transparent transition-colors group-aria-pressed:border-(--class-color) group-aria-pressed:bg-(--class-color) group-aria-pressed:text-background"
+              >
+                <Check class="size-3.5" />
+              </span>
             </span>
           </button>
         </li>
@@ -142,9 +155,9 @@ function moveFocus(event: KeyboardEvent, index: number) {
 
       <Empty v-else-if="!error" class="border-0">
         <EmptyHeader>
-          <div class="flex items-center justify-center">
-            <Sparkles class="size-8 text-muted-foreground" :stroke-width="1.5" aria-hidden="true" />
-          </div>
+          <EmptyMedia variant="icon">
+            <Sparkles aria-hidden="true" />
+          </EmptyMedia>
           <EmptyDescription>{{ emptyText }}</EmptyDescription>
         </EmptyHeader>
         <EmptyContent

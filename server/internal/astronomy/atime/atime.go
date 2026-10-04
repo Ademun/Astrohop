@@ -26,7 +26,7 @@ func UTCToJulian(t time.Time) float64 {
 		I +
 		1721013.5 +
 		UT/24 -
-		0.5*sign(100*K+M-190002.5) + 0.5
+		0.5*coordinates.Sign(100*K+M-190002.5) + 0.5
 	return JD
 }
 
@@ -50,39 +50,19 @@ func UTCToGAST(t time.Time) float64 {
 	Dtt := JDut - 2451545.0
 	Dut := JD0 - 2451545.0
 	T := Dtt / 36525
-	GMST := math.Mod(6.697375+0.065709824279*Dut+1.0027379*H+0.0000258*math.Pow(T, 2), 24)
-	if GMST < 0 {
-		GMST += 24
-	}
-	omega := (125.04 - 0.052954*Dtt) * (math.Pi / 180)
-	L := (280.47 + 0.98565*Dtt) * (math.Pi / 180)
-	epsilon := (23.4393 - 0.0000004*Dtt) * (math.Pi / 180)
+	GMST := coordinates.NormHour(6.697375 + 0.065709824279*Dut + 1.0027379*H + 0.0000258*math.Pow(T, 2))
+	omega := coordinates.Rad(125.04 - 0.052954*Dtt)
+	L := coordinates.Rad(280.47 + 0.98565*Dtt)
+	epsilon := coordinates.Rad(23.4393 - 0.0000004*Dtt)
 	nutation := -0.000319*math.Sin(omega) - 0.000024*math.Sin(2*L)
 	eqeq := nutation * math.Cos(epsilon)
-	GAST := math.Mod(GMST+eqeq, 24)
-	if GAST < 0 {
-		GAST += 24
-	}
+	GAST := coordinates.NormHour(GMST + eqeq)
 	return GAST
 }
 
 func GetLocalSidereal(loc coordinates.GeoLocation, time time.Time) float64 {
 	gast := UTCToGAST(time)
 	long := loc.Long / 15
-	lst := math.Mod(gast+long, 24)
-	if lst < 0 {
-		lst += 24
-	}
+	lst := coordinates.NormHour(gast + long)
 	return lst
-}
-
-func sign(n float64) float64 {
-	switch {
-	case n < 0:
-		return -1
-	case n > 0:
-		return 1
-	default:
-		return 0
-	}
 }

@@ -1,214 +1,158 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from "vue";
-import { Search, Loader2, Check, X } from "@lucide/vue";
-import { Input } from "@/components/ui/input";
+import { computed, nextTick, ref } from "vue";
+import { X } from "@lucide/vue";
 import { Badge } from "@/components/ui/badge";
-import { apiClient } from "@/api/client";
+import { Button } from "@/components/ui/button";
+import SearchBar from "@/components/catalog/SearchBar.vue";
+import ObjectList from "@/components/catalog/ObjectList.vue";
+import { useCatalogSearch } from "@/composables/useCatalogSearch";
 
-const props = defineProps({
-  modelValue: {
-    type: Object,
-    default: () => ({ objectives: [] }),
-  },
-});
-const emit = defineEmits(["update:modelValue", "update:valid"]);
+const draft = defineModel({ required: true });
 
-const MIN_QUERY_LENGTH = 3;
-const DEBOUNCE_MS = 300;
+const submitted = ref(false);
+const errorEl = ref(null);
 
-// Objective[] — seeded from whatever the wizard already has for this step.
-const objectives = ref([...(props.modelValue.objectives ?? [])]);
+const {
+  query,
+  activeCollectionId,
+  activeCollection,
+  collections,
+  collectionsError,
+  items,
+  hasMore,
+  loading,
+  loadingMore,
+  error,
+  hasCollection,
+  placeholder,
+  suggestions,
+  summary,
+  emptyText,
+  canWidenSearch,
+  applyFilters,
+  onQueryInput,
+  toggleCollection,
+  loadCollections,
+  loadMore,
+  retry,
+} = useCatalogSearch();
 
-const query = ref("");
-const results = ref([]);
-const isSearching = ref(false);
-const searchError = ref("");
-const dropdownOpen = ref(false);
+const objectives = computed(() => draft.value.objectives);
+const selectedIds = computed(() => objectives.value.map((o) => o.oid));
+const showEmptyError = computed(
+    () => submitted.value && objectives.value.length === 0,
+);
 
-let debounceHandle = null;
-let requestToken = 0; // guards against an older, slower response overwriting a newer one
-
-function onQueryInput() {
-  if (!dropdownOpen.value) {
-    dropdownOpen.value = true
-  }
-  clearTimeout(debounceHandle);
-  const trimmed = query.value.trim();
-
-  if (trimmed.length < MIN_QUERY_LENGTH) {
-    results.value = [];
-    searchError.value = "";
-    isSearching.value = false;
-    return;
-  }
-
-  debounceHandle = setTimeout(() => runSearch(trimmed), DEBOUNCE_MS);
+function toggle(item) {
+  draft.value = {
+    objectives: selectedIds.value.includes(item.id)
+        ? objectives.value.filter((o) => o.oid !== item.id)
+        : [
+          ...objectives.value,
+          { oid: item.id, name: item.common_name ?? item.identifier },
+        ],
+  };
 }
 
-async function runSearch(name) {
-  const token = ++requestToken;
-  isSearching.value = true;
-  searchError.value = "";
-  try {
-    const found = await apiClient.searchCatalog(name);
-    console.log(found)
-    if (token !== requestToken) return;
-    results.value = found;
-  } catch (err) {
-    if (token !== requestToken) return;
-    results.value = [];
-    searchError.value = "Search failed — try again.";
-  } finally {
-    if (token === requestToken) isSearching.value = false;
-  }
+function remove(oid) {
+  draft.value = { objectives: objectives.value.filter((o) => o.oid !== oid) };
 }
 
-function isSelected(oid) {
-  return objectives.value.some((o) => o.oid === oid);
+function validate() {
+  submitted.value = true;
+  const valid = objectives.value.length > 0;
+  if (!valid) nextTick(() => errorEl.value?.focus());
+  return valid;
 }
 
-function selectObject(obj) {
-  // A repeat oid replaces the existing entry instead of duplicating it.
-  objectives.value = [
-    ...objectives.value.filter((o) => o.oid !== obj.id),
-    { oid: obj.id, name: obj.common_name },
-  ];
-  emitModel();
-
-  query.value = "";
-  results.value = [];
-  dropdownOpen.value = false;
-}
-
-function removeObjective(oid) {
-  objectives.value = objectives.value.filter((o) => o.oid !== oid);
-  emitModel();
-}
-
-function emitModel() {
-  emit("update:valid", objectives.value.length > 0);
-  emit("update:modelValue", { objectives: objectives.value });
-}
-
-function openDropdown() {
-  dropdownOpen.value = true;
-}
-
-function closeDropdownDeferred() {
-  // Deferred so a click on a result (mousedown fires first) still registers
-  // before the input's blur would otherwise close the dropdown.
-  setTimeout(() => {
-    dropdownOpen.value = false;
-  }, 120);
-}
-
-onMounted(() => {
-  emit("update:valid", objectives.value.length > 0);
-});
-
-onBeforeUnmount(() => clearTimeout(debounceHandle));
+defineExpose({ validate });
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-2xl flex-col gap-6">
-    <div>
-      <h2 class="text-sm font-medium">Objectives</h2>
-      <p class="mt-1 text-sm text-muted-foreground">
-        Search for the deep-sky objects you want to hop to tonight.
-      </p>
-    </div>
-
-    <div class="relative">
-      <Search
-        class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-      />
-      <Input
-        v-model="query"
-        type="text"
-        placeholder="Search by name — e.g. Andromeda, M13, Ring Nebula"
-        class="pl-9"
-        @input="onQueryInput"
-        @focus="openDropdown"
-        @blur="closeDropdownDeferred"
-      />
-      <Loader2
-        v-if="isSearching"
-        class="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground"
-      />
-
-      <div
-        v-if="dropdownOpen && query.trim().length > 0"
-        class="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md"
-      >
-        <p
-          v-if="query.trim().length < MIN_QUERY_LENGTH"
-          class="px-3 py-2 text-sm text-muted-foreground"
-        >
-          Keep typing — {{ MIN_QUERY_LENGTH }} characters minimum.
-        </p>
-
-        <p v-else-if="searchError" class="px-3 py-2 text-sm text-destructive">
-          {{ searchError }}
-        </p>
-
-        <p
-          v-else-if="!isSearching && results.length === 0"
-          class="px-3 py-2 text-sm text-muted-foreground"
-        >
-          No matches for "{{ query.trim() }}".
-        </p>
-
-        <ul v-else class="max-h-64 overflow-y-auto py-1">
-          <li v-for="obj in results" :key="obj.id">
-            <button
-              type="button"
-              class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-              @mousedown.prevent="selectObject(obj)"
-            >
-              <span class="flex flex-col">
-                <span class="font-medium">{{ obj.common_name }}</span>
-                <span class="text-xs text-muted-foreground">{{
-                  obj.type
-                }}</span>
-              </span>
-              <Check
-                v-if="isSelected(obj.id)"
-                class="size-4 shrink-0 text-primary"
-              />
-            </button>
-          </li>
-        </ul>
-      </div>
-    </div>
-
-    <div>
-      <h3 class="text-xs font-medium text-muted-foreground">
-        Selected ({{ objectives.length }})
+  <div class="flex max-w-3xl flex-col gap-6">
+    <section
+        aria-labelledby="selected-heading"
+        class="z-10 max-h-40 overflow-y-auto rounded-lg border border-border bg-card p-4 sm:sticky sm:top-0"
+    >
+      <h3 id="selected-heading" class="text-sm font-medium">
+        Selected targets
+        <span class="text-muted-foreground">({{ objectives.length }})</span>
       </h3>
-      <p
-        v-if="objectives.length === 0"
-        class="mt-2 text-sm text-muted-foreground"
-      >
-        No objectives selected yet.
+
+      <ul v-if="objectives.length" class="mt-3 flex flex-wrap gap-2">
+        <li v-for="objective in objectives" :key="objective.oid">
+          <Badge variant="secondary" class="gap-1 py-1 pl-2.5 pr-1">
+            {{ objective.name }}
+            <button
+                type="button"
+                class="rounded-full p-0.5 hover:bg-background/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                :aria-label="`Remove ${objective.name}`"
+                @click="remove(objective.oid)"
+            >
+              <X class="size-3" aria-hidden="true" />
+            </button>
+          </Badge>
+        </li>
+      </ul>
+      <p v-else class="mt-2 text-sm text-muted-foreground">
+        Nothing yet. Pick objects from the list below.
       </p>
-      <div v-else class="mt-2 flex flex-wrap gap-2">
-        <Badge
-          v-for="obj in objectives"
-          :key="obj.oid"
-          variant="secondary"
-          class="gap-1.5 py-1 pl-2.5 pr-1.5"
+
+      <p
+          v-if="showEmptyError"
+          ref="errorEl"
+          role="alert"
+          tabindex="-1"
+          class="mt-2 text-sm text-destructive outline-none"
+      >
+        Select at least one target to continue.
+      </p>
+    </section>
+
+    <section aria-label="Browse the catalog" class="flex flex-col gap-4">
+      <SearchBar
+          :query="query"
+          :placeholder="placeholder"
+          :collections="collections"
+          :active-collection-id="activeCollectionId"
+          :collections-error="collectionsError"
+          :description="activeCollection?.description"
+          @query-input="onQueryInput"
+          @clear="applyFilters({ query: '' })"
+          @toggle-collection="toggleCollection"
+          @retry-collections="loadCollections"
+      />
+
+      <div class="flex flex-col gap-3">
+        <p role="status" class="min-h-5 text-sm text-muted-foreground">
+          {{ summary }}
+        </p>
+        <ObjectList
+            multiple
+            :items="items"
+            :selected-ids="selectedIds"
+            :loading="loading"
+            :loading-more="loadingMore"
+            :has-more="hasMore"
+            :error="error"
+            :empty-text="emptyText"
+            :scoped="hasCollection"
+            :suggestions="suggestions"
+            @select="toggle"
+            @load-more="loadMore"
+            @retry="retry"
+            @suggest="applyFilters({ query: $event })"
+        />
+        <Button
+            v-if="canWidenSearch"
+            variant="outline"
+            size="sm"
+            class="self-center"
+            @click="applyFilters({ collection: null })"
         >
-          {{ obj.name }}
-          <button
-            type="button"
-            class="rounded-full p-0.5 hover:bg-background/50"
-            @click="removeObjective(obj.oid)"
-          >
-            <X class="size-3" />
-            <span class="sr-only">Remove {{ obj.name }}</span>
-          </button>
-        </Badge>
+          Search all collections
+        </Button>
       </div>
-    </div>
+    </section>
   </div>
 </template>

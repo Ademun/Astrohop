@@ -97,7 +97,7 @@ func newSearchHitDTO(h SearchHit) SearchHitDTO {
 }
 
 func newEquatorialDTO(e coordinates.Equatorial) EquatorialDTO {
-	return EquatorialDTO{RA: e.RA, Dec: e.Dec}
+	return EquatorialDTO{RA: coordinates.Deg(e.RA), Dec: coordinates.Deg(e.Dec)}
 }
 
 func newObjectDTO(o Object) ObjectDTO {

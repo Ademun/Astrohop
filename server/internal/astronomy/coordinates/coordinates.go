@@ -1,16 +1,16 @@
 package coordinates
 
+// All struct fields are expressed in radians and all calculations are performed in radians
+
 import (
 	"math"
 )
 
-const RadToDeg = 180 / math.Pi
-const DegToRad = math.Pi / 180
 const Obliquity = 23.44 * DegToRad
 
 type Equatorial struct {
-	RA  float64 // Right ascension in [0, 360).
-	Dec float64 // Declination in [-90, 90].
+	RA  float64 // Right ascension in [0, 2π).
+	Dec float64 // Declination in [-π/2, π/2].
 }
 
 func NewEquatorial(ra float64, dec float64) Equatorial {
@@ -18,73 +18,46 @@ func NewEquatorial(ra float64, dec float64) Equatorial {
 }
 
 func (eq Equatorial) ToHorizontal(lst float64, lat float64) Horizontal {
-	h := (lst * 15) - eq.RA
-	latRad := lat * DegToRad
-	hRad := h * DegToRad
-	decRad := eq.Dec * DegToRad
+	h := NormRad(Rad(lst*15) - eq.RA)
 
-	sinAlt := math.Sin(decRad)*math.Sin(latRad) + math.Cos(decRad)*math.Cos(latRad)*math.Cos(hRad)
+	sinAlt := math.Sin(eq.Dec)*math.Sin(lat) + math.Cos(eq.Dec)*math.Cos(lat)*math.Cos(h)
 	sinAlt = math.Max(-1.0, math.Min(1.0, sinAlt))
-	altRad := math.Asin(sinAlt)
-	y := -1 * math.Sin(hRad) * math.Cos(decRad)
-	x := math.Sin(decRad) - math.Sin(latRad)*sinAlt/math.Cos(latRad)
+	alt := math.Asin(sinAlt)
+	y := -1 * math.Sin(h) * math.Cos(eq.Dec)
+	x := math.Sin(eq.Dec) - math.Sin(lat)*sinAlt/math.Cos(lat)
 
-	azRad := math.Atan2(y, x)
+	az := NormRad(math.Atan2(y, x))
 
 	return Horizontal{
-		Alt: altRad * RadToDeg,
-		Az:  NormDeg(azRad * RadToDeg),
+		Alt: alt,
+		Az:  az,
 	}
 }
 
 type Horizontal struct {
-	Alt float64 `json:"alt"` // In degrees
-	Az  float64 `json:"az"`  // In degrees
-}
-
-func (hr Horizontal) ToEquatorial(lst float64, lat float64) Equatorial {
-	latRad := lat * DegToRad
-	altRad := hr.Alt * DegToRad
-	azRad := hr.Az * DegToRad
-
-	sinDec := math.Sin(altRad)*math.Sin(latRad) + math.Cos(altRad)*math.Cos(latRad)*math.Cos(azRad)
-	sinDec = math.Max(-1.0, math.Min(1.0, sinDec))
-	decRad := math.Asin(sinDec)
-	y := -1 * math.Sin(azRad) * math.Cos(altRad)
-	x := math.Sin(altRad) - sinDec*math.Sin(latRad)/math.Cos(latRad)
-
-	hRad := math.Atan2(y, x)
-	h := hRad * RadToDeg / 15
-	ra := NormDeg((lst - h) * 15)
-
-	return Equatorial{
-		RA:  ra,
-		Dec: decRad * RadToDeg,
-	}
+	Az  float64 `json:"az"`  // Azimuth in [0, 2π).
+	Alt float64 `json:"alt"` // Altitude in [-π/2, π/2].
 }
 
 type Ecliptic struct {
-	Lat  float64 // In degrees
-	Long float64 // In degrees
+	Long float64 // Celestial longitude in [0, 2π)
+	Lat  float64 // Celestial latitude in [-π/2, π/2].
 	Dist float64 // Km
 }
 
 func (ec Ecliptic) ToEquatorial() Equatorial {
-	latRad := ec.Lat * DegToRad
-	longRad := ec.Long * DegToRad
-
-	sinDec := math.Sin(latRad)*math.Cos(Obliquity) + math.Cos(latRad)*math.Sin(Obliquity)*math.Sin(longRad)
+	sinDec := math.Sin(ec.Lat)*math.Cos(Obliquity) + math.Cos(ec.Lat)*math.Sin(Obliquity)*math.Sin(ec.Long)
 	sinDec = math.Max(-1.0, math.Min(1.0, sinDec))
-	decRad := math.Asin(sinDec)
+	dec := math.Asin(sinDec)
 
-	y := math.Sin(longRad)*math.Cos(Obliquity) - math.Tan(latRad)*math.Sin(Obliquity)
-	x := math.Cos(longRad)
+	y := math.Sin(ec.Long)*math.Cos(Obliquity) - math.Tan(ec.Lat)*math.Sin(Obliquity)
+	x := math.Cos(ec.Long)
 
-	raRad := math.Atan2(y, x)
+	ra := NormRad(math.Atan2(y, x))
 
 	return Equatorial{
-		RA:  NormDeg(raRad * RadToDeg),
-		Dec: decRad * RadToDeg,
+		RA:  ra,
+		Dec: dec,
 	}
 }
 
@@ -94,13 +67,8 @@ type GeoLocation struct {
 }
 
 func DistanceEq(a, b Equatorial) float64 {
-	raaRad := a.RA * DegToRad
-	decaRad := a.Dec * DegToRad
-	rabRad := b.RA * DegToRad
-	decbRad := b.Dec * DegToRad
-
-	cosDist := math.Sin(decaRad)*math.Sin(decbRad) + math.Cos(decaRad)*math.Cos(decbRad)*math.Cos(raaRad-rabRad)
+	cosDist := math.Sin(a.Dec)*math.Sin(b.Dec) + math.Cos(a.Dec)*math.Cos(b.Dec)*math.Cos(a.RA-b.RA)
 	cosDist = math.Max(-1.0, math.Min(1.0, cosDist))
 
-	return math.Acos(cosDist) * RadToDeg
+	return math.Acos(cosDist)
 }

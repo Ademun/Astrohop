@@ -1,23 +1,22 @@
 <script setup>
-import { ref, reactive, computed, markRaw } from "vue";
+import { computed, nextTick, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { Check, X, Loader2 } from "@lucide/vue";
+import { Check, Loader2, X } from "@lucide/vue";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Stepper,
   StepperItem,
-  StepperTrigger,
-  StepperIndicator,
   StepperSeparator,
   StepperTitle,
+  StepperTrigger,
 } from "@/components/ui/stepper";
+import RetryAlert from "@/components/catalog/RetryAlert.vue";
 
-import StepCoordinatesTime from "../steps/StepCoordinatesTime.vue";
+import StepSite from "../steps/StepSite.vue";
 import StepTargets from "../steps/StepTargets.vue";
-import StepConditions from "../steps/StepConditions.vue";
 import StepReview from "../steps/StepReview.vue";
 import { getOrCreateAccountKey } from "@/lib/account.ts";
+import { toIsoWithOffset } from "@/lib/format";
 import { apiClient } from "@/api/client";
 
 const emit = defineEmits(["close"]);
@@ -25,81 +24,82 @@ const router = useRouter();
 
 const steps = [
   {
-    id: "coordinates-time",
-    title: "Coordinates & time",
-    component: markRaw(StepCoordinatesTime),
+    id: "site",
+    label: "Site & time",
+    title: "Where and when",
+    description: "Pin the observing site and set the night you plan to observe.",
   },
-  { id: "targets", title: "Targets", component: markRaw(StepTargets) },
-  { id: "conditions", title: "Conditions", component: markRaw(StepConditions) },
-  { id: "review", title: "Review", component: markRaw(StepReview) },
+  {
+    id: "targets",
+    label: "Targets",
+    title: "What to observe",
+    description:
+        "Pick the objects you want to hop to. Browse a collection or search by name.",
+  },
+  {
+    id: "review",
+    label: "Review",
+    title: "Check and create",
+    description: "Make sure everything is right. Use Change to fix a detail.",
+  },
 ];
 
-const currentIndex = ref(0);
-const currentStepNumber = computed(() => currentIndex.value + 1);
-
-// One reactive bucket per step, keyed by step id. Each step component
-// owns the shape of its own slice and reports back whether it's valid.
 const mission = reactive({
-  "coordinates-time": { lat: null, lng: null, time: null },
+  site: { lat: null, lng: null, time: "", limiting_magnitude: null },
   targets: { objectives: [] },
-  conditions: { limiting_magnitude: null },
-  review: {},
 });
 
-const stepValidity = reactive({
-  "coordinates-time": false,
-  targets: false,
-  conditions: false,
-  review: true,
-});
-
-const isFirstStep = computed(() => currentIndex.value === 0);
-const isLastStep = computed(() => currentIndex.value === steps.length - 1);
-const canAdvance = computed(() => stepValidity[steps[currentIndex.value].id]);
-
+const stepIndex = ref(0);
+const stepRef = ref(null);
+const mainEl = ref(null);
+const headingEl = ref(null);
 const isSubmitting = ref(false);
 const submitError = ref("");
 
-function stepState(index) {
-  if (index < currentIndex.value) return "completed";
-  if (index === currentIndex.value) return "active";
-  return "inactive";
+const step = computed(() => steps[stepIndex.value]);
+const isFirst = computed(() => stepIndex.value === 0);
+const isLast = computed(() => stepIndex.value === steps.length - 1);
+const continueLabel = computed(() => {
+  if (isSubmitting.value) return "Creating…";
+  return isLast.value ? "Create mission" : "Continue";
+});
+
+async function goTo(index) {
+  stepIndex.value = index;
+  await nextTick();
+  mainEl.value?.scrollTo({ top: 0 });
+  headingEl.value?.focus();
 }
 
-function goBack() {
-  if (!isFirstStep.value) currentIndex.value -= 1;
+function jumpTo(stepNumber) {
+  if (stepNumber - 1 < stepIndex.value) goTo(stepNumber - 1);
 }
 
-function goNext() {
-  if (isLastStep.value) {
-    submitMission();
-    return;
-  }
-  if (canAdvance.value) currentIndex.value += 1;
+function back() {
+  if (!isFirst.value) goTo(stepIndex.value - 1);
 }
 
-function goToStep(index) {
-  // Only allow jumping backward to a step already completed.
-  if (index < currentIndex.value) currentIndex.value = index;
+function next() {
+  if (!(stepRef.value?.validate?.() ?? true)) return;
+  if (isLast.value) submit();
+  else goTo(stepIndex.value + 1);
 }
 
-async function submitMission() {
+async function submit() {
   isSubmitting.value = true;
   submitError.value = "";
   try {
     await getOrCreateAccountKey();
 
-    const coordinatesTime = mission["coordinates-time"];
-    const missionData = {
-      location: { lat: coordinatesTime.lat, long: coordinatesTime.lng },
-      time: coordinatesTime.time,
-      objectives: mission.targets.objectives,
-      conditions: { limiting_magnitude: mission.conditions.limiting_magnitude },
-    };
-
-    const { mission_id } = await apiClient.createMission(missionData);
+    const { site, targets } = mission;
+    const { mission_id } = await apiClient.createMission({
+      location: { lat: Number(site.lat), long: Number(site.lng) },
+      time: toIsoWithOffset(site.time),
+      objectives: targets.objectives,
+      conditions: { limiting_magnitude: Number(site.limiting_magnitude) },
+    });
     router.push(`/missions/${mission_id}`);
-  } catch (err) {
+  } catch {
     submitError.value = "Could not create the mission. Try again.";
   } finally {
     isSubmitting.value = false;
@@ -109,9 +109,8 @@ async function submitMission() {
 
 <template>
   <div class="flex h-dvh flex-col bg-background text-foreground">
-    <!-- Header -->
     <header class="shrink-0 border-b border-border px-6 py-4">
-      <div class="flex items-start justify-between gap-4">
+      <div class="mx-auto flex w-full max-w-5xl items-start justify-between gap-4">
         <div>
           <h1 class="font-heading text-xl font-semibold leading-tight">
             New mission
@@ -120,106 +119,97 @@ async function submitMission() {
             Set up a night of observing, step by step.
           </p>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="shrink-0"
-          @click="emit('close')"
-        >
-          <X class="size-4" />
-          <span class="sr-only">Close</span>
-        </Button>
       </div>
 
-      <!-- Stepper -->
       <Stepper
-        class="mt-6 flex w-full items-start gap-2"
-        :model-value="currentStepNumber"
+          class="mx-auto mt-6 flex w-full max-w-2xl items-start gap-2"
+          :model-value="stepIndex + 1"
+          @update:model-value="jumpTo"
       >
         <StepperItem
-          v-for="(step, index) in steps"
-          :key="step.id"
-          class="relative flex flex-1 flex-col items-center gap-2"
-          :step="index + 1"
+            v-for="(item, index) in steps"
+            :key="item.id"
+            v-slot="{ state }"
+            class="relative flex flex-1 flex-col items-center gap-2"
+            :step="index + 1"
         >
           <StepperSeparator
-            v-if="index !== steps.length - 1"
-            class="absolute left-1/2 top-4 h-px w-full -translate-y-1/2 bg-border data-[state=completed]:bg-primary"
+              v-if="index < steps.length - 1"
+              class="absolute left-1/2 top-[18px] h-0.5 w-full -translate-y-1/2 bg-border data-[state=completed]:bg-primary"
           />
-          <StepperTrigger
-            as-child
-            :disabled="index > currentIndex"
-            @click="goToStep(index)"
-          >
-            <button
-              type="button"
-              class="z-10 flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-medium transition-colors"
-              :class="[
-                stepState(index) === 'active' &&
-                  'border-primary bg-primary text-primary-foreground',
-                stepState(index) === 'completed' &&
-                  'border-primary bg-primary text-primary-foreground',
-                stepState(index) === 'inactive' &&
-                  'border-border bg-background text-muted-foreground',
-              ]"
+          <StepperTrigger as-child :disabled="state === 'inactive'">
+            <Button
+                :variant="state === 'inactive' ? 'outline' : 'default'"
+                size="icon"
+                class="z-10 size-9 rounded-full text-xs"
+                :aria-current="state === 'active' ? 'step' : undefined"
             >
-              <Check v-if="stepState(index) === 'completed'" class="size-4" />
-              <span v-else>{{ index + 1 }}</span>
-            </button>
+              <Check v-if="state === 'completed'" class="size-4" aria-hidden="true" />
+              <span v-else aria-hidden="true">{{ index + 1 }}</span>
+              <span class="sr-only">
+                Step {{ index + 1 }}: {{ item.label }}
+                <template v-if="state === 'completed'">, completed</template>
+              </span>
+            </Button>
           </StepperTrigger>
           <StepperTitle
-            class="hidden text-center text-xs sm:block"
-            :class="
-              stepState(index) === 'inactive'
-                ? 'text-muted-foreground'
-                : 'text-foreground'
-            "
+              as="span"
+              aria-hidden="true"
+              class="text-center text-xs"
+              :class="state === 'inactive' ? 'text-muted-foreground' : 'text-foreground'"
           >
-            {{ step.title }}
+            {{ item.label }}
           </StepperTitle>
         </StepperItem>
       </Stepper>
-      <!-- Mobile: current step label only -->
-      <p class="mt-3 text-center text-xs text-muted-foreground sm:hidden">
-        Step {{ currentStepNumber }} of {{ steps.length }} ·
-        {{ steps[currentIndex].title }}
-      </p>
     </header>
 
-    <!-- Step content -->
-    <main class="flex-1 overflow-y-auto px-6 py-6">
-      <component
-        :is="steps[currentIndex].component"
-        v-model="mission[steps[currentIndex].id]"
-        :mission="mission"
-        @update:valid="(v) => (stepValidity[steps[currentIndex].id] = v)"
-      />
+    <main ref="mainEl" class="flex-1 overflow-y-auto px-6 py-8">
+      <div class="mx-auto w-full max-w-5xl">
+        <div class="mb-8 flex max-w-2xl flex-col gap-1">
+          <p class="text-xs uppercase tracking-wide text-muted-foreground">
+            Step {{ stepIndex + 1 }} of {{ steps.length }}
+          </p>
+          <h2
+              ref="headingEl"
+              tabindex="-1"
+              class="font-heading text-2xl tracking-tight outline-none"
+          >
+            {{ step.title }}
+          </h2>
+          <p class="text-sm text-muted-foreground">{{ step.description }}</p>
+        </div>
+
+        <StepSite v-if="step.id === 'site'" ref="stepRef" v-model="mission.site" />
+        <StepTargets
+            v-else-if="step.id === 'targets'"
+            ref="stepRef"
+            v-model="mission.targets"
+        />
+        <StepReview
+            v-else
+            :mission="mission"
+            @edit="goTo(steps.findIndex((s) => s.id === $event))"
+        />
+      </div>
     </main>
 
-    <!-- Footer -->
     <footer class="shrink-0 border-t border-border px-6 py-4">
-      <Separator class="mb-4 sm:hidden" />
-      <p v-if="submitError" class="mb-3 text-sm text-destructive">
-        {{ submitError }}
-      </p>
-      <div class="flex items-center justify-between">
-        <Button
-          variant="outline"
-          :disabled="isFirstStep || isSubmitting"
-          @click="goBack"
-        >
-          Back
-        </Button>
-        <Button :disabled="!canAdvance || isSubmitting" @click="goNext">
-          <Loader2 v-if="isSubmitting" class="size-4 animate-spin" />
-          {{
-            isSubmitting
-              ? "Creating…"
-              : isLastStep
-                ? "Create mission"
-                : "Continue"
-          }}
-        </Button>
+      <div class="mx-auto flex w-full max-w-5xl flex-col gap-3">
+        <RetryAlert v-if="submitError" :message="submitError" @retry="submit" />
+        <div class="flex items-center justify-between">
+          <Button
+              variant="outline"
+              :disabled="isFirst || isSubmitting"
+              @click="back"
+          >
+            Back
+          </Button>
+          <Button :disabled="isSubmitting" @click="next">
+            <Loader2 v-if="isSubmitting" class="animate-spin" aria-hidden="true" />
+            {{ continueLabel }}
+          </Button>
+        </div>
       </div>
     </footer>
   </div>

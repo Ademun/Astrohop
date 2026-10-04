@@ -1,8 +1,35 @@
 const PARSEC_TO_LIGHT_YEARS = 3.26156;
 const PLACEHOLDER = "—";
 
-function pad(value: number): string {
-    return String(value).padStart(2, "0");
+const pad = (value: any) => String(value).padStart(2, "0");
+
+export function nowLocalInput() {
+    const now = new Date();
+    const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    return `${date}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+export function utcOffset(localInput: any) {
+    const date = localInput ? new Date(localInput) : new Date();
+    const minutes = -date.getTimezoneOffset();
+    const sign = minutes >= 0 ? "+" : "-";
+    const abs = Math.abs(minutes);
+    return `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
+}
+
+export function toIsoWithOffset(localInput: any) {
+    const value = localInput.slice(0, 16);
+    return `${value}:00${utcOffset(value)}`;
+}
+
+export function formatLocalInput(localInput: any) {
+    const [datePart, timePart] = localInput.slice(0, 16).split("T");
+    const [year, month, day] = datePart.split("-").map(Number);
+    const monthName = new Date(Date.UTC(year, month - 1, day)).toLocaleString(
+        "en-US",
+        { month: "long", timeZone: "UTC" },
+    );
+    return `${monthName} ${day}, ${year}, ${timePart}`;
 }
 
 function sexagesimal(total: number, unitsPerCycle: number) {

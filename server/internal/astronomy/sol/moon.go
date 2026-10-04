@@ -36,7 +36,7 @@ func CalculateMoonPosition(t time.Time) *coordinates.Ecliptic {
 	var lSum, rSum, bSum float64
 	for _, row := range moonLngDistTable {
 		d, m, mp, f, lc, rc := row[0], row[1], row[2], row[3], row[4], row[5]
-		theta := (d*D + m*M + mp*Mp + f*F) * coordinates.DegToRad
+		theta := coordinates.Rad(d*D + m*M + mp*Mp + f*F)
 		coef := 1.0
 		switch m {
 		case 1, -1:
@@ -50,7 +50,7 @@ func CalculateMoonPosition(t time.Time) *coordinates.Ecliptic {
 
 	for _, row := range moonLatTable {
 		d, m, mp, f, bc := row[0], row[1], row[2], row[3], row[4]
-		theta := (d*D + m*M + mp*Mp + f*F) * coordinates.DegToRad
+		theta := coordinates.Rad(d*D + m*M + mp*Mp + f*F)
 		coef := 1.0
 		switch m {
 		case 1, -1:
@@ -61,23 +61,23 @@ func CalculateMoonPosition(t time.Time) *coordinates.Ecliptic {
 		bSum += coef * bc * math.Sin(theta)
 	}
 
-	lSum = lSum + 3958*math.Sin(a1*coordinates.DegToRad) +
-		1962*math.Sin((Lp-F)*coordinates.DegToRad) +
-		318*math.Sin(a2*coordinates.DegToRad)
-	bSum = bSum - 2235*math.Sin(Lp*coordinates.DegToRad) +
-		382*math.Sin(a3*coordinates.DegToRad) +
-		175*math.Sin((a1-F)*coordinates.DegToRad) +
-		175*math.Sin((a1+F)*coordinates.DegToRad) +
-		127*math.Sin((Lp-Mp)*coordinates.DegToRad) -
-		115*math.Sin((Lp+Mp)*coordinates.DegToRad)
+	lSum = lSum + 3958*math.Sin(coordinates.Rad(a1)) +
+		1962*math.Sin(coordinates.Rad(Lp-F)) +
+		318*math.Sin(coordinates.Rad(a2))
+	bSum = bSum - 2235*math.Sin(coordinates.Rad(Lp)) +
+		382*math.Sin(coordinates.Rad(a3)) +
+		175*math.Sin(coordinates.Rad(a1-F)) +
+		175*math.Sin(coordinates.Rad(a1+F)) +
+		127*math.Sin(coordinates.Rad(Lp-Mp)) -
+		115*math.Sin(coordinates.Rad(Lp+Mp))
 
-	long := Lp + lSum/1e6
-	lat := bSum / 1e6
+	long := coordinates.Rad(Lp + lSum/1e6)
+	lat := coordinates.Rad(bSum / 1e6)
 	dist := 385000.56 + rSum/1000.0
 
 	return &coordinates.Ecliptic{
 		Lat:  lat,
-		Long: coordinates.NormDeg(long),
+		Long: coordinates.NormRad(long),
 		Dist: dist,
 	}
 }
@@ -89,13 +89,13 @@ type MoonIllumination struct {
 }
 
 func CalculateMoonIllumination(moonPos, sunPos *coordinates.Ecliptic, lst, lat float64) MoonIllumination {
-	lambdaM := moonPos.Long * coordinates.DegToRad
-	betaM := moonPos.Lat * coordinates.DegToRad
-	lambdaS := sunPos.Long * coordinates.DegToRad
+	lambdaM := coordinates.Rad(moonPos.Long)
+	betaM := coordinates.Rad(moonPos.Lat)
+	lambdaS := coordinates.Rad(sunPos.Long)
 
 	cosPsi := math.Cos(betaM) * math.Cos(lambdaS-lambdaM)
 	cosI := -cosPsi
-	IRad := math.Acos(cosI)
+	I := math.Acos(cosI)
 
 	k := (1 + cosI) / 2
 
@@ -103,19 +103,19 @@ func CalculateMoonIllumination(moonPos, sunPos *coordinates.Ecliptic, lst, lat f
 	parallactic := coordinates.ParallacticAngle(&moonEquatorial, lst, lat)
 	sunEquatorial := sunPos.ToEquatorial()
 
-	alpha := moonEquatorial.RA * coordinates.DegToRad
-	delta := moonEquatorial.Dec * coordinates.DegToRad
-	alpha0 := sunEquatorial.RA * coordinates.DegToRad
-	delta0 := sunEquatorial.Dec * coordinates.DegToRad
+	alpha := moonEquatorial.RA
+	delta := moonEquatorial.Dec
+	alpha0 := sunEquatorial.RA
+	delta0 := sunEquatorial.Dec
 
 	y := math.Cos(delta0) * math.Sin(alpha0-alpha)
 	x := math.Sin(delta0)*math.Cos(delta) - math.Cos(delta0)*math.Sin(delta)*math.Cos(alpha0-alpha)
 
 	chi := math.Atan2(y, x)*coordinates.RadToDeg - parallactic
 
-	magnitude := -12.73 + 1.49*math.Abs(IRad) + 0.043*math.Pow(IRad, 4)
+	magnitude := -12.73 + 1.49*math.Abs(I) + 0.043*math.Pow(I, 4)
 	flux := VBandMagnitudeToFlux(magnitude)
-	flux *= math.Pow(MeanMoonDistanceToEarthKm/moonPos.Dist, 2) * math.Max(1, 1.35-2.865*math.Abs(IRad))
+	flux *= math.Pow(MeanMoonDistanceToEarthKm/moonPos.Dist, 2) * math.Max(1, 1.35-2.865*math.Abs(I))
 	magnitude = VBandFluxToMagnitude(flux)
 
 	return MoonIllumination{

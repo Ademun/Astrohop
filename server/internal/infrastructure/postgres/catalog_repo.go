@@ -27,7 +27,7 @@ func (r *CatalogRepo) Collections(ctx context.Context) ([]catalog.Collection, er
 	if err != nil {
 		return nil, err
 	}
-	return utils.Map(rows, collectionRow.ToDomain), nil
+	return utils.Map(rows, collectionRow.toDomain), nil
 }
 
 func (r *CatalogRepo) Object(ctx context.Context, id catalog.ObjectID) (catalog.Object, error) {
@@ -37,7 +37,7 @@ func (r *CatalogRepo) Object(ctx context.Context, id catalog.ObjectID) (catalog.
 	if err != nil {
 		return catalog.Object{}, err
 	}
-	return row.ToDomain()
+	return row.toDomain()
 }
 
 func (r *CatalogRepo) Positions(ctx context.Context, ids []catalog.ObjectID) ([]catalog.ObjectPosition, error) {
@@ -65,7 +65,7 @@ func (r *CatalogRepo) Positions(ctx context.Context, ids []catalog.ObjectID) ([]
 		return nil, fmt.Errorf("%w: %v", catalog.ErrNotFound, missing)
 	}
 
-	return utils.Map(rows, positionRow.ToDomain), nil
+	return utils.Map(rows, positionRow.toDomain), nil
 }
 
 func (r *CatalogRepo) Search(ctx context.Context, request catalog.SearchRequest) ([]catalog.SearchHit, error) {
@@ -90,7 +90,7 @@ func (r *CatalogRepo) Search(ctx context.Context, request catalog.SearchRequest)
 	if err != nil {
 		return nil, err
 	}
-	return utils.Map(rows, searchRow.ToDomain), nil
+	return utils.Map(rows, searchRow.toDomain), nil
 }
 
 func (r *CatalogRepo) ConstellationByStar(ctx context.Context, id catalog.ObjectID) (*catalog.Constellation, error) {
@@ -152,7 +152,7 @@ func (r *CatalogRepo) loadConstellations(ctx context.Context, id *int16) ([]cata
 
 	for _, b := range bounds {
 		c := byID[b.ConstellationID]
-		c.Boundary = append(c.Boundary, b.ToDomain())
+		c.Boundary = append(c.Boundary, b.toDomain())
 	}
 
 	var prev struct{ constellation, segment int16 }
@@ -163,14 +163,10 @@ func (r *CatalogRepo) loadConstellations(ctx context.Context, id *int16) ([]cata
 			prev.constellation, prev.segment = p.ConstellationID, p.SegmentNo
 		}
 		last := len(c.Pattern) - 1
-		c.Pattern[last] = append(c.Pattern[last], p.ToDomain())
+		c.Pattern[last] = append(c.Pattern[last], p.toDomain())
 	}
 
 	return res, nil
-}
-
-func equatorial(raRad, decRad float64) coordinates.Equatorial {
-	return coordinates.NewEquatorial(raRad*coordinates.RadToDeg, decRad*coordinates.RadToDeg)
 }
 
 type objectRefRow struct {
@@ -179,7 +175,7 @@ type objectRefRow struct {
 	CommonName *string `db:"common_name"`
 }
 
-func (r objectRefRow) ToDomain() catalog.ObjectRef {
+func (r objectRefRow) toDomain() catalog.ObjectRef {
 	return catalog.ObjectRef{ID: catalog.ObjectID(r.ID), Class: catalog.Class(r.Class), CommonName: r.CommonName}
 }
 
@@ -189,8 +185,8 @@ type positionRow struct {
 	Dec float64 `db:"dec_rad"`
 }
 
-func (r positionRow) ToDomain() catalog.ObjectPosition {
-	return catalog.ObjectPosition{ID: catalog.ObjectID(r.ID), Position: equatorial(r.RA, r.Dec)}
+func (r positionRow) toDomain() catalog.ObjectPosition {
+	return catalog.ObjectPosition{ID: catalog.ObjectID(r.ID), Position: coordinates.NewEquatorial(r.RA, r.Dec)}
 }
 
 type collectionRow struct {
@@ -199,7 +195,7 @@ type collectionRow struct {
 	Description *string `db:"description"`
 }
 
-func (r collectionRow) ToDomain() catalog.Collection {
+func (r collectionRow) toDomain() catalog.Collection {
 	return catalog.Collection{ID: catalog.CollectionID(r.ID), Name: r.Name, Description: r.Description}
 }
 
@@ -209,8 +205,8 @@ type searchRow struct {
 	Collection string `db:"collection"`
 }
 
-func (r searchRow) ToDomain() catalog.SearchHit {
-	return catalog.SearchHit{ObjectRef: r.objectRefRow.ToDomain(), Identifier: r.Identifier, Collection: r.Collection}
+func (r searchRow) toDomain() catalog.SearchHit {
+	return catalog.SearchHit{ObjectRef: r.objectRefRow.toDomain(), Identifier: r.Identifier, Collection: r.Collection}
 }
 
 // objectRow: subtype presence is determined by has_* flags, not by NULL checks,
@@ -237,11 +233,11 @@ type objectRow struct {
 	DSOPosAngle *float64 `db:"dso_pos_angle"`
 }
 
-func (r objectRow) ToDomain() (catalog.Object, error) {
+func (r objectRow) toDomain() (catalog.Object, error) {
 	o := catalog.Object{
 		ID:       catalog.ObjectID(r.ID),
 		Class:    catalog.Class(r.Class),
-		Position: equatorial(r.RA, r.Dec),
+		Position: coordinates.NewEquatorial(r.RA, r.Dec),
 		Distance: r.Distance,
 		Metadata: catalog.Metadata{
 			TypeName:    r.TypeName,
@@ -291,10 +287,10 @@ type boundaryRow struct {
 	EndDec          float64 `db:"end_dec_rad"`
 }
 
-func (r boundaryRow) ToDomain() catalog.BoundarySegment {
+func (r boundaryRow) toDomain() catalog.BoundarySegment {
 	return catalog.BoundarySegment{
-		Start: equatorial(r.StartRA, r.StartDec),
-		End:   equatorial(r.EndRA, r.EndDec),
+		Start: coordinates.NewEquatorial(r.StartRA, r.StartDec),
+		End:   coordinates.NewEquatorial(r.EndRA, r.EndDec),
 	}
 }
 

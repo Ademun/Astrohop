@@ -51,7 +51,7 @@ func (h *Handler) HandleGetMission() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, NewMissionFullDTO(mission))
+		c.JSON(http.StatusOK, newMissionFullDTO(mission))
 	}
 }
 
@@ -67,7 +67,7 @@ func (h *Handler) HandleGetAccountMissions() gin.HandlerFunc {
 
 		json := make([]MissionShortDTO, len(missions))
 		for i, m := range missions {
-			json[i] = NewMissionShortDTO(&m)
+			json[i] = newMissionShortDTO(&m)
 		}
 
 		c.JSON(http.StatusOK, json)
@@ -107,7 +107,7 @@ func (h *Handler) HandleGetMissionStream() gin.HandlerFunc {
 					return false
 				}
 				if progress.Payload != nil {
-					msg["payload"] = NewMapDTO(progress.Payload)
+					msg["payload"] = newMapDTO(progress.Payload)
 					c.SSEvent("message", msg)
 				}
 				return true

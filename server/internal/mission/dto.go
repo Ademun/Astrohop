@@ -16,22 +16,6 @@ type MissionFullDTO struct {
 	ModifiedAt  *time.Time     `json:"modified_at,omitempty"`
 }
 
-func NewMissionFullDTO(m *Mission) MissionFullDTO {
-	dto := MissionFullDTO{
-		ID:          m.MissionID.String(),
-		Information: NewInformationDTO(&m.Information),
-		Data:        NewDataDTO(&m.Data),
-		Overrides:   m.Overrides,
-		IsPublic:    m.IsPublic,
-		CreatedAt:   m.CreatedAt,
-		ModifiedAt:  m.ModifiedAt,
-	}
-	if m.Map != nil {
-		dto.Map = NewMapDTO(m.Map)
-	}
-	return dto
-}
-
 type MissionShortDTO struct {
 	ID          string         `json:"mission_id"`
 	Information InformationDTO `json:"information"`
@@ -39,21 +23,64 @@ type MissionShortDTO struct {
 	CreatedAt   time.Time      `json:"created_at"`
 }
 
-func NewMissionShortDTO(m *Mission) MissionShortDTO {
-	return MissionShortDTO{
-		ID:          m.MissionID.String(),
-		Information: NewInformationDTO(&m.Information),
-		IsPublic:    m.IsPublic,
-		CreatedAt:   m.CreatedAt,
-	}
-}
-
 type InformationDTO struct {
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
 }
 
-func NewInformationDTO(i *Information) InformationDTO {
+type DataDTO struct {
+	Location   coordinates.GeoLocation `json:"location"`
+	Time       time.Time               `json:"time"`
+	Objectives []ObjectiveDTO          `json:"objectives"`
+	Conditions ConditionsDTO           `json:"conditions"`
+}
+
+type HorizontalDTO struct {
+	Azimuth  float64 `json:"azimuth"`
+	Altitude float64 `json:"altitude"`
+}
+
+type MapDTO struct {
+	MoonPosition HorizontalDTO           `json:"moon_position"`
+	Positions    map[int64]HorizontalDTO `json:"positions"`
+	Tour         []int64                 `json:"tour"`
+}
+
+type ObjectiveDTO struct {
+	OID  int64  `json:"oid" binding:"required"`
+	Name string `json:"name" binding:"required"`
+}
+
+type ConditionsDTO struct {
+	LimitingMagnitude float32 `json:"limiting_magnitude"`
+}
+
+func newMissionFullDTO(m *Mission) MissionFullDTO {
+	dto := MissionFullDTO{
+		ID:          m.MissionID.String(),
+		Information: newInformationDTO(&m.Information),
+		Data:        newDataDTO(&m.Data),
+		Overrides:   m.Overrides,
+		IsPublic:    m.IsPublic,
+		CreatedAt:   m.CreatedAt,
+		ModifiedAt:  m.ModifiedAt,
+	}
+	if m.Map != nil {
+		dto.Map = newMapDTO(m.Map)
+	}
+	return dto
+}
+
+func newMissionShortDTO(m *Mission) MissionShortDTO {
+	return MissionShortDTO{
+		ID:          m.MissionID.String(),
+		Information: newInformationDTO(&m.Information),
+		IsPublic:    m.IsPublic,
+		CreatedAt:   m.CreatedAt,
+	}
+}
+
+func newInformationDTO(i *Information) InformationDTO {
 	return InformationDTO{
 		Name:        i.Name,
 		Description: i.Description,
@@ -67,23 +94,16 @@ func (d InformationDTO) ToDomain() Information {
 	}
 }
 
-type DataDTO struct {
-	Location   coordinates.GeoLocation `json:"location"`
-	Time       time.Time               `json:"time"`
-	Objectives []ObjectiveDTO          `json:"objectives"`
-	Conditions ConditionsDTO           `json:"conditions"`
-}
-
-func NewDataDTO(dt *Data) DataDTO {
+func newDataDTO(dt *Data) DataDTO {
 	objectives := make([]ObjectiveDTO, len(dt.Objectives))
 	for i := range dt.Objectives {
-		objectives[i] = NewObjectiveDTO(&dt.Objectives[i])
+		objectives[i] = newObjectiveDTO(&dt.Objectives[i])
 	}
 	return DataDTO{
 		Location:   dt.Location,
 		Time:       dt.Time,
 		Objectives: objectives,
-		Conditions: NewConditionsDTO(&dt.Conditions),
+		Conditions: newConditionsDTO(&dt.Conditions),
 	}
 }
 
@@ -100,26 +120,26 @@ func (d DataDTO) ToDomain() *Data {
 	}
 }
 
-type MapDTO struct {
-	MoonPosition coordinates.Horizontal           `json:"moon_position"`
-	Positions    map[int64]coordinates.Horizontal `json:"positions"`
-	Tour         []int64                          `json:"tour"`
+func newHorizontalDTO(h coordinates.Horizontal) HorizontalDTO {
+	return HorizontalDTO{
+		Azimuth:  coordinates.Deg(h.Az),
+		Altitude: coordinates.Deg(h.Alt),
+	}
 }
 
-func NewMapDTO(m *Map) *MapDTO {
+func newMapDTO(m *Map) *MapDTO {
+	positions := make(map[int64]HorizontalDTO, len(m.Positions))
+	for id, p := range m.Positions {
+		positions[id] = newHorizontalDTO(p)
+	}
 	return &MapDTO{
-		MoonPosition: m.MoonPosition,
-		Positions:    m.Positions,
+		MoonPosition: newHorizontalDTO(m.MoonPosition),
+		Positions:    positions,
 		Tour:         m.Tour,
 	}
 }
 
-type ObjectiveDTO struct {
-	OID  int64  `json:"oid" binding:"required"`
-	Name string `json:"name" binding:"required"`
-}
-
-func NewObjectiveDTO(o *Objective) ObjectiveDTO {
+func newObjectiveDTO(o *Objective) ObjectiveDTO {
 	return ObjectiveDTO{OID: o.OID, Name: o.Name}
 }
 
@@ -127,11 +147,7 @@ func (d ObjectiveDTO) ToDomain() *Objective {
 	return &Objective{OID: d.OID, Name: d.Name}
 }
 
-type ConditionsDTO struct {
-	LimitingMagnitude float32 `json:"limiting_magnitude"`
-}
-
-func NewConditionsDTO(c *Conditions) ConditionsDTO {
+func newConditionsDTO(c *Conditions) ConditionsDTO {
 	return ConditionsDTO{LimitingMagnitude: c.LimitingMagnitude}
 }
 
