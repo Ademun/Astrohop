@@ -2,8 +2,8 @@ package account
 
 import (
 	"astrohop/pkg/apperr"
+	"astrohop/pkg/utils"
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 )
 
@@ -20,7 +20,7 @@ func NewService(repo Repo) *Service {
 }
 
 func (s *Service) CreateAccount(ctx context.Context) (string, error) {
-	key, err := generateKey(256)
+	key, err := utils.RandomKey(256)
 	if err != nil {
 		return "", apperr.Internal(ErrGenKey, "failed to generate account key", err)
 	}
@@ -31,13 +31,4 @@ func (s *Service) CreateAccount(ctx context.Context) (string, error) {
 	}
 
 	return urlKey, nil
-}
-
-func generateKey(size int) ([]byte, error) {
-	key := make([]byte, size)
-	_, err := rand.Read(key)
-	if err != nil {
-		return nil, err
-	}
-	return key, nil
 }

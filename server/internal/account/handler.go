@@ -18,7 +18,7 @@ func (h *Handler) HandleCreateAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		key, err := h.svc.CreateAccount(c.Request.Context())
 		if err != nil {
-			c.Error(err)
+			_ = c.Error(err)
 			return
 		}
 		c.Header("Authorization", "Bearer "+key)
