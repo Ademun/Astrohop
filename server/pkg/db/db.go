@@ -28,7 +28,7 @@ func NewManager(pool *pgxpool.Pool) *Manager {
 	}
 }
 
-func (m *Manager) WithTx(ctx context.Context, f func(context.Context) error) error {
+func (m *Manager) WithTx(ctx context.Context, f func(context.Context) error) (err error) {
 	if _, ok := ctx.Value(txKey).(pgx.Tx); ok {
 		return f(ctx)
 	}
@@ -42,7 +42,7 @@ func (m *Manager) WithTx(ctx context.Context, f func(context.Context) error) err
 			panic(r)
 		}
 		if err != nil {
-			if rbErr := tx.Rollback(ctx); rbErr != nil && !errors.Is(err, pgx.ErrTxClosed) {
+			if rbErr := tx.Rollback(ctx); rbErr != nil && !errors.Is(rbErr, pgx.ErrTxClosed) {
 				err = errors.Join(err, fmt.Errorf("tx manager: rollback: %w", rbErr))
 			}
 			return

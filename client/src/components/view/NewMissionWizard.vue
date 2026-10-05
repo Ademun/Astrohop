@@ -1,23 +1,17 @@
 <script setup>
-import { computed, nextTick, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
-import { Check, Loader2, X } from "@lucide/vue";
-import { Button } from "@/components/ui/button";
-import {
-  Stepper,
-  StepperItem,
-  StepperSeparator,
-  StepperTitle,
-  StepperTrigger,
-} from "@/components/ui/stepper";
+import {computed, nextTick, reactive, ref} from "vue";
+import {useRouter} from "vue-router";
+import {Check, Loader2} from "@lucide/vue";
+import {Button} from "@/components/ui/button";
+import {Stepper, StepperItem, StepperSeparator, StepperTitle, StepperTrigger,} from "@/components/ui/stepper";
 import RetryAlert from "@/components/catalog/RetryAlert.vue";
 
 import StepSite from "../steps/StepSite.vue";
 import StepTargets from "../steps/StepTargets.vue";
 import StepReview from "../steps/StepReview.vue";
-import { getOrCreateAccountKey } from "@/lib/account.ts";
-import { toIsoWithOffset } from "@/lib/format";
-import { apiClient } from "@/api/client";
+import {getOrCreateAccountKey} from "@/lib/account.ts";
+import {toIsoWithOffset} from "@/lib/format";
+import {apiClient} from "@/api/client";
 
 const emit = defineEmits(["close"]);
 const router = useRouter();
@@ -45,8 +39,8 @@ const steps = [
 ];
 
 const mission = reactive({
-  site: { lat: null, lng: null, time: "", limiting_magnitude: null },
-  targets: { objectives: [] },
+  site: {lat: null, lng: null, time: "", limiting_magnitude: null},
+  targets: {objectives: []},
 });
 
 const stepIndex = ref(0);
@@ -67,7 +61,7 @@ const continueLabel = computed(() => {
 async function goTo(index) {
   stepIndex.value = index;
   await nextTick();
-  mainEl.value?.scrollTo({ top: 0 });
+  mainEl.value?.scrollTo({top: 0});
   headingEl.value?.focus();
 }
 
@@ -91,12 +85,12 @@ async function submit() {
   try {
     await getOrCreateAccountKey();
 
-    const { site, targets } = mission;
-    const { mission_id } = await apiClient.createMission({
-      location: { lat: Number(site.lat), long: Number(site.lng) },
+    const {site, targets} = mission;
+    const {mission_id} = await apiClient.createMission({
+      location: {lat: Number(site.lat), long: Number(site.lng)},
       time: toIsoWithOffset(site.time),
       objectives: targets.objectives,
-      conditions: { limiting_magnitude: Number(site.limiting_magnitude) },
+      conditions: {limiting_magnitude: Number(site.limiting_magnitude)},
     });
     router.push(`/missions/${mission_id}`);
   } catch {
@@ -109,59 +103,61 @@ async function submit() {
 
 <template>
   <div class="flex h-dvh flex-col bg-background text-foreground">
-    <header class="shrink-0 border-b border-border px-6 py-4">
-      <div class="mx-auto flex w-full max-w-5xl items-start justify-between gap-4">
+    <header class="shrink-0 border-b border-border px-6 py-3 lg:py-4">
+      <div
+          class="mx-auto grid w-full max-w-5xl grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3 lg:grid-cols-[auto_1fr_auto] lg:gap-x-8"
+      >
         <div>
           <h1 class="font-heading text-xl font-semibold leading-tight">
             New mission
           </h1>
-          <p class="mt-1 text-sm text-muted-foreground">
+          <p class="mt-1 hidden text-sm text-muted-foreground sm:block">
             Set up a night of observing, step by step.
           </p>
         </div>
-      </div>
 
-      <Stepper
-          class="mx-auto mt-6 flex w-full max-w-2xl items-start gap-2"
-          :model-value="stepIndex + 1"
-          @update:model-value="jumpTo"
-      >
-        <StepperItem
-            v-for="(item, index) in steps"
-            :key="item.id"
-            v-slot="{ state }"
-            class="relative flex flex-1 flex-col items-center gap-2"
-            :step="index + 1"
+        <Stepper
+            class="col-span-2 row-start-2 flex w-full max-w-xl items-start gap-2 justify-self-center lg:col-span-1 lg:col-start-2 lg:row-start-1"
+            :model-value="stepIndex + 1"
+            @update:model-value="jumpTo"
         >
-          <StepperSeparator
-              v-if="index < steps.length - 1"
-              class="absolute left-1/2 top-[18px] h-0.5 w-full -translate-y-1/2 bg-border data-[state=completed]:bg-primary"
-          />
-          <StepperTrigger as-child :disabled="state === 'inactive'">
-            <Button
-                :variant="state === 'inactive' ? 'outline' : 'default'"
-                size="icon"
-                class="z-10 size-9 rounded-full text-xs"
-                :aria-current="state === 'active' ? 'step' : undefined"
-            >
-              <Check v-if="state === 'completed'" class="size-4" aria-hidden="true" />
-              <span v-else aria-hidden="true">{{ index + 1 }}</span>
-              <span class="sr-only">
-                Step {{ index + 1 }}: {{ item.label }}
-                <template v-if="state === 'completed'">, completed</template>
-              </span>
-            </Button>
-          </StepperTrigger>
-          <StepperTitle
-              as="span"
-              aria-hidden="true"
-              class="text-center text-xs"
-              :class="state === 'inactive' ? 'text-muted-foreground' : 'text-foreground'"
+          <StepperItem
+              v-for="(item, index) in steps"
+              :key="item.id"
+              v-slot="{ state }"
+              class="relative flex flex-1 flex-col items-center gap-2"
+              :step="index + 1"
           >
-            {{ item.label }}
-          </StepperTitle>
-        </StepperItem>
-      </Stepper>
+            <StepperSeparator
+                v-if="index < steps.length - 1"
+                class="absolute left-1/2 top-[18px] h-0.5 w-full -translate-y-1/2 bg-border data-[state=completed]:bg-primary"
+            />
+            <StepperTrigger as-child :disabled="state === 'inactive'">
+              <Button
+                  :variant="state === 'inactive' ? 'outline' : 'default'"
+                  size="icon"
+                  class="z-10 size-9 rounded-full text-xs"
+                  :aria-current="state === 'active' ? 'step' : undefined"
+              >
+                <Check v-if="state === 'completed'" class="size-4" aria-hidden="true"/>
+                <span v-else aria-hidden="true">{{ index + 1 }}</span>
+                <span class="sr-only">
+                  Step {{ index + 1 }}: {{ item.label }}
+                  <template v-if="state === 'completed'">, completed</template>
+                </span>
+              </Button>
+            </StepperTrigger>
+            <StepperTitle
+                as="span"
+                aria-hidden="true"
+                class="text-center text-xs"
+                :class="state === 'inactive' ? 'text-muted-foreground' : 'text-foreground'"
+            >
+              {{ item.label }}
+            </StepperTitle>
+          </StepperItem>
+        </Stepper>
+      </div>
     </header>
 
     <main ref="mainEl" class="flex-1 overflow-y-auto px-6 py-8">
@@ -180,7 +176,7 @@ async function submit() {
           <p class="text-sm text-muted-foreground">{{ step.description }}</p>
         </div>
 
-        <StepSite v-if="step.id === 'site'" ref="stepRef" v-model="mission.site" />
+        <StepSite v-if="step.id === 'site'" ref="stepRef" v-model="mission.site"/>
         <StepTargets
             v-else-if="step.id === 'targets'"
             ref="stepRef"
@@ -196,7 +192,7 @@ async function submit() {
 
     <footer class="shrink-0 border-t border-border px-6 py-4">
       <div class="mx-auto flex w-full max-w-5xl flex-col gap-3">
-        <RetryAlert v-if="submitError" :message="submitError" @retry="submit" />
+        <RetryAlert v-if="submitError" :message="submitError" @retry="submit"/>
         <div class="flex items-center justify-between">
           <Button
               variant="outline"
@@ -206,7 +202,7 @@ async function submit() {
             Back
           </Button>
           <Button :disabled="isSubmitting" @click="next">
-            <Loader2 v-if="isSubmitting" class="animate-spin" aria-hidden="true" />
+            <Loader2 v-if="isSubmitting" class="animate-spin" aria-hidden="true"/>
             {{ continueLabel }}
           </Button>
         </div>
