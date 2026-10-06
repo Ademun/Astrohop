@@ -1,25 +1,23 @@
-import type { Component } from 'vue'
-import { Map, Galaxy, Link2 } from '@lucide/vue'
+import type {Component} from 'vue'
+import {Galaxy, Map, User} from '@lucide/vue'
 
 export interface NavItem {
-  label: string
-  icon: Component
-  to?: string
+    label: string
+    icon: Component
+    to?: string
 }
 
 export interface FooterItem {
-  label: string
-  to: string
+    label: string
+    to: string
 }
 
 export const primaryNavItems: NavItem[] = [
-  { label: 'My missions', icon: Map, to: '/missions' },
-  { label: 'Object catalog', icon: Galaxy, to: '/catalog' },
-  { label: 'Link devices', icon: Link2, to: '/pair'}
+    {label: 'My missions', icon: Map, to: '/missions'},
+    {label: 'Object catalog', icon: Galaxy, to: '/catalog'},
+    {label: 'Account', icon: User, to: '/account'}
 ]
 
 export const footerNavItems: FooterItem[] = [
-  { label: 'FAQ', to: '/faq' },
-  { label: 'About', to: '/about' },
-  { label: 'Donate', to: '/donate' },
+    {label: 'About', to: '/about'},
 ]

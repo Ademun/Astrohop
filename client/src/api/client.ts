@@ -1,15 +1,6 @@
-import type {
-    ApiErrorBody,
-    CatalogObject,
-    Collection,
-    CreateMissionResponse,
-    Mission,
-    MissionData,
-    MissionProgressEvent,
-    SearchHit,
-    SearchRequest,
-    UnauthorizedErrorBody,
-} from "@/types/api";
+import type {ApiErrorBody, UnauthorizedErrorBody,} from "@/types/api";
+import {Collection, CelestialObject, SearchHit, SearchRequest} from "@/types/catalog.ts";
+import {Data, Information, MissionFull, MissionID, MissionShort, ProgressEvent} from "@/types/mission.ts";
 
 export class ApiError extends Error {
     readonly status: number;
@@ -29,31 +20,10 @@ export interface AstrohopClientOptions {
     fetchFn?: typeof fetch;
 }
 
-export interface StartPairingHandlers {
-    onRequestId?: (reqId: string) => void;
-    onEncryptionKey: (key: Uint8Array) => void;
-    onClose?: () => void;
-    onError?: (error: unknown) => void;
-}
-
-export interface JoinPairingHandlers {
-    onAccountKey: (encryptedAccountKey: Uint8Array) => void;
-    onClose?: () => void;
-    onError?: (error: unknown) => void;
-}
-
-export interface PairingSession {
-    close: () => void;
-}
-
-export interface SourcePairingSession extends PairingSession {
-    sendAccountKey: (encryptedAccountKey: Uint8Array) => void;
-}
-
 export class AstrohopClient {
-    private baseUrl: string;
+    private readonly baseUrl: string;
     private token: string | null;
-    private fetchFn: typeof fetch;
+    private readonly fetchFn: typeof fetch;
 
     constructor(options: AstrohopClientOptions) {
         this.baseUrl = options.baseUrl.replace(/\/+$/, "");
@@ -71,23 +41,6 @@ export class AstrohopClient {
 
     private authHeaders(): Record<string, string> {
         return this.token ? {Authorization: `Bearer ${this.token}`} : {};
-    }
-
-    // WebSocket can't reuse authHeaders() — the browser API has no way
-    // to set an Authorization header on the handshake request at all,
-    // regardless of same-origin/CORS settings. baseUrl may be relative
-    // ("/server"), so resolve it against the page before swapping the
-    // scheme; a bare relative URL passed straight to `new WebSocket()`
-    // throws, since the resolved scheme has to be ws:/wss:, not http(s).
-    private wsUrl(path: string, params?: Record<string, string>): string {
-        const url = new URL(this.baseUrl + path, window.location.href);
-        url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-        if (params) {
-            for (const [key, value] of Object.entries(params)) {
-                url.searchParams.set(key, value);
-            }
-        }
-        return url.toString();
     }
 
     private async request<T>(
@@ -155,7 +108,7 @@ export class AstrohopClient {
         return {token};
     }
 
-    async listCollections(signal?: AbortSignal): Promise<Collection[]> {
+    async listCatalogCollections(signal?: AbortSignal): Promise<Collection[]> {
         const collections = await this.request<Collection[] | null>(
             "/api/v1/catalog/collections",
             {method: "GET", signal},
@@ -166,8 +119,8 @@ export class AstrohopClient {
     async getCatalogObject(
         objectId: number,
         signal?: AbortSignal,
-    ): Promise<CatalogObject> {
-        return this.request<CatalogObject>(`/api/v1/catalog/objects/${objectId}`, {
+    ): Promise<CelestialObject> {
+        return this.request<CelestialObject>(`/api/v1/catalog/objects/${objectId}`, {
             method: "GET",
             signal,
         });
@@ -185,19 +138,19 @@ export class AstrohopClient {
         return hits ?? [];
     }
 
-    async listMissions(): Promise<Mission[]> {
-        return this.request<Mission[]>("/api/v1/missions", {method: "GET"});
+    async listMissions(): Promise<MissionShort[]> {
+        return this.request<MissionShort[]>("/api/v1/missions", {method: "GET"});
     }
 
-    async createMission(data: MissionData): Promise<CreateMissionResponse> {
-        return this.request<CreateMissionResponse>("/api/v1/missions", {
+    async createMission(data: Data): Promise<MissionID> {
+        return this.request<MissionID>("/api/v1/missions", {
             method: "POST",
             body: JSON.stringify(data),
         });
     }
 
-    async getMission(missionId: string): Promise<Mission> {
-        return this.request<Mission>(
+    async getMission(missionId: string): Promise<MissionFull> {
+        return this.request<MissionFull>(
             `/api/v1/missions/${encodeURIComponent(missionId)}`,
             {
                 method: "GET",
@@ -205,9 +158,20 @@ export class AstrohopClient {
         );
     }
 
-    async updateMission(missionId: string, data: MissionData): Promise<void> {
+    async updateMissionInformation(missionId: string, info: Information): Promise<void> {
         await this.request<void>(
-            `/api/v1/missions/${encodeURIComponent(missionId)}`,
+            `/api/v1/missions/${encodeURIComponent(missionId)}/info`,
+            {
+                method: "PATCH",
+                body: JSON.stringify(info),
+                expectBody: false,
+            },
+        );
+    }
+
+    async updateMissionData(missionId: string, data: Data): Promise<void> {
+        await this.request<void>(
+            `/api/v1/missions/${encodeURIComponent(missionId)}/data`,
             {
                 method: "PATCH",
                 body: JSON.stringify(data),
@@ -226,21 +190,10 @@ export class AstrohopClient {
         );
     }
 
-    async updateMissionVisibility(
-        missionId: string,
-        isPublic: boolean,
-    ): Promise<void> {
-        const query = new URLSearchParams({public: String(isPublic)});
-        await this.request<void>(
-            `/api/v1/missions/${encodeURIComponent(missionId)}/visibility?${query.toString()}`,
-            {method: "PATCH", expectBody: false},
-        );
-    }
-
     streamMissionProgress(
         missionId: string,
         handlers: {
-            onEvent: (event: MissionProgressEvent) => void;
+            onEvent: (event: ProgressEvent) => void;
             onError?: (error: unknown) => void;
             onClose?: () => void;
         },
@@ -295,7 +248,7 @@ export class AstrohopClient {
 
                         const dataStr = dataLines.join("\n");
                         try {
-                            const parsed = JSON.parse(dataStr) as MissionProgressEvent;
+                            const parsed = JSON.parse(dataStr) as ProgressEvent;
                             handlers.onEvent(parsed);
                         } catch (parseErr) {
                             handlers.onError?.(parseErr);
@@ -314,105 +267,6 @@ export class AstrohopClient {
         })();
 
         return controller;
-    }
-
-    startPairing(handlers: StartPairingHandlers): SourcePairingSession {
-        if (!this.token) {
-            throw new ApiError(
-                401,
-                "Cannot start pairing without an authenticated session",
-                undefined,
-            );
-        }
-
-        const ws = new WebSocket(
-            this.wsUrl("/api/v1/pairing"),
-        );
-        ws.binaryType = "arraybuffer";
-
-        let stage: "reqId" | "encryptionKey" | "done" = "reqId";
-
-        ws.onmessage = (event) => {
-            const data = new Uint8Array(event.data as ArrayBuffer);
-            if (stage === "reqId") {
-                stage = "encryptionKey";
-                handlers.onRequestId?.(new TextDecoder().decode(data));
-                return;
-            }
-            if (stage === "encryptionKey") {
-                stage = "done";
-                handlers.onEncryptionKey(data);
-            }
-        };
-
-        ws.onerror = () => {
-            handlers.onError?.(new Error("Pairing connection failed"));
-        };
-
-        ws.onclose = (event) => {
-            if (event.code !== 1000 && stage !== "done") {
-                handlers.onError?.(
-                    new ApiError(
-                        event.code,
-                        event.reason || "Pairing session closed unexpectedly",
-                        undefined,
-                    ),
-                );
-            }
-            handlers.onClose?.();
-        };
-
-        return {
-            sendAccountKey: (encryptedAccountKey: Uint8Array) => {
-                if (ws.readyState !== WebSocket.OPEN) {
-                    throw new Error(
-                        "Cannot send account key: pairing socket is not open",
-                    );
-                }
-                ws.send(encryptedAccountKey as Uint8Array<ArrayBuffer>);
-            },
-            close: () => ws.close(1000),
-        };
-    }
-
-    joinPairing(
-        reqId: string,
-        encryptionKey: Uint8Array,
-        handlers: JoinPairingHandlers,
-    ): PairingSession {
-        const ws = new WebSocket(
-            this.wsUrl(`/api/v1/pairing/${encodeURIComponent(reqId)}`),
-        );
-        ws.binaryType = "arraybuffer";
-
-        ws.onopen = () => {
-            ws.send(encryptionKey as Uint8Array<ArrayBuffer>);
-        };
-
-        let received = false;
-        ws.onmessage = (event) => {
-            received = true;
-            handlers.onAccountKey(new Uint8Array(event.data as ArrayBuffer));
-        };
-
-        ws.onerror = () => {
-            handlers.onError?.(new Error("Pairing connection failed"));
-        };
-
-        ws.onclose = (event) => {
-            if (event.code !== 1000 && !received) {
-                handlers.onError?.(
-                    new ApiError(
-                        event.code,
-                        event.reason || "Pairing session closed unexpectedly",
-                        undefined,
-                    ),
-                );
-            }
-            handlers.onClose?.();
-        };
-
-        return {close: () => ws.close(1000)};
     }
 }
 

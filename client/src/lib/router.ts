@@ -1,4 +1,3 @@
-import DevicePairingView from "@/components/view/DevicePairingView.vue";
 import LandingPage from "@/components/view/LandingPage.vue";
 import MissionDetailView from "@/components/view/MissionDetailView.vue";
 import MissionsView from "@/components/view/MissionsView.vue";
@@ -11,7 +10,6 @@ const routes: RouteRecordRaw[] = [
     {path: "/missions", component: MissionsView},
     {path: "/missions/new", component: NewMissionWizard},
     {path: "/missions/:id", component: MissionDetailView},
-    {path: "/pair", component: DevicePairingView},
     {path: "/catalog", component: Catalog}
 ];
 
