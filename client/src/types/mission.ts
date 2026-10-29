@@ -1,12 +1,11 @@
-import {Horizontal} from "@/types/coordinates.ts";
-import {MapData} from "@/types/api.ts";
+import {GeoLocation, Horizontal} from "@/types/coordinates.ts";
 
 interface MissionID {
     mission_id: string
 }
 
 interface MissionFull {
-    id: string,
+    mission_id: string,
     information: Information,
     data: Data,
     map?: Map,
@@ -17,7 +16,7 @@ interface MissionFull {
 }
 
 interface MissionShort {
-    id: string,
+    mission_id: string,
     information: Information,
     is_public: boolean,
     created_at: string
@@ -29,7 +28,7 @@ interface Information {
 }
 
 interface Data {
-    location: Geolocation,
+    location: GeoLocation,
     time: string,
     objectives: Array<Objective>,
     conditions: Conditions
@@ -57,7 +56,7 @@ type ProgressStatus = "building_route" | "done" | "failed";
 
 interface ProgressEvent {
     progress: ProgressStatus;
-    payload?: MapData;
+    payload?: Map;
     error?: string;
 }
 

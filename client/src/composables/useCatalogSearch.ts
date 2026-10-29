@@ -1,7 +1,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { apiClient } from "@/api/client";
 import { errorMessage } from "@/lib/errors";
-import type { Collection, SearchHit } from "@/types/api";
+import type { Collection, SearchHit } from "@/types/catalog";
 
 interface Filters {
     query?: string;
@@ -86,7 +86,7 @@ export function useCatalogSearch(options: Options = {}) {
     async function loadCollections() {
         collectionsError.value = null;
         try {
-            collections.value = await apiClient.listCollections();
+            collections.value = await apiClient.listCatalogCollections();
         } catch (err) {
             collectionsError.value = errorMessage(err);
         }

@@ -42,11 +42,11 @@ function sexagesimal(total: number, unitsPerCycle: number) {
 }
 
 export function formatNumber(
-    value: number | null,
+    value: number | undefined,
     digits = 2,
     unit = "",
 ): string {
-    if (value === null) return PLACEHOLDER;
+    if (value === undefined) return PLACEHOLDER;
     const formatted = value.toLocaleString("en-US", {
         maximumFractionDigits: digits,
     });
@@ -65,8 +65,8 @@ export function formatDeclination(degrees: number): string {
     return `${sign}${pad(whole)}°${pad(minutes)}′${seconds}″`;
 }
 
-export function formatDistance(parsecs: number | null): string {
-    if (parsecs === null) return "Unknown";
+export function formatDistance(parsecs: number | undefined): string {
+    if (parsecs === undefined) return "Unknown";
     const digits = parsecs < 100 ? 2 : 0;
     return `${formatNumber(parsecs, digits, "pc")} (${formatNumber(
         parsecs * PARSEC_TO_LIGHT_YEARS,
@@ -76,11 +76,11 @@ export function formatDistance(parsecs: number | null): string {
 }
 
 export function formatAngularSize(
-    major: number | null,
-    minor: number | null,
+    major: number | undefined,
+    minor: number | undefined,
 ): string {
-    if (major === null && minor === null) return PLACEHOLDER;
-    if (major === null || minor === null) {
+    if (major === undefined && minor === undefined) return PLACEHOLDER;
+    if (major === undefined || minor === undefined) {
         return `${formatNumber(major ?? minor, 1)}′`;
     }
     if (Math.abs(major - minor) < 0.05) return `${formatNumber(major, 1)}′`;

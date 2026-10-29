@@ -16,7 +16,7 @@ import ObjectList from "@/components/catalog/ObjectList.vue";
 import ObjectDetails from "@/components/catalog/ObjectDetails.vue";
 import { useCatalogSearch } from "@/composables/useCatalogSearch";
 import { errorMessage } from "@/lib/errors";
-import type { CatalogObject, SearchHit } from "@/types/api";
+import type { CelestialObject, SearchHit } from "@/types/catalog";
 
 type QueryValue = LocationQueryValue | LocationQueryValue[] | undefined;
 
@@ -69,7 +69,7 @@ const {
 const selectedId = ref(positiveInt(route.query.object));
 const selectedLabel = ref<string | null>(null);
 
-const object = ref<CatalogObject | null>(null);
+const object = ref<CelestialObject | null>(null);
 const objectLoading = ref(false);
 const objectError = ref<string | null>(null);
 

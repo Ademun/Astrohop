@@ -23,7 +23,7 @@ import RetryAlert from "@/components/catalog/RetryAlert.vue";
 import { getOrCreateAccountKey } from "@/lib/account";
 import { errorMessage } from "@/lib/errors";
 import { apiClient } from "@/api/client";
-import type { MissionSummary } from "@/types/api";
+import type { MissionShort } from "@/types/mission";
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
 const relativeFormatter = new Intl.RelativeTimeFormat(undefined, {
@@ -38,7 +38,7 @@ const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ["minute", 60],
 ];
 
-const missions = ref<MissionSummary[]>([]);
+const missions = ref<MissionShort[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
@@ -52,7 +52,7 @@ const sortedMissions = computed(() =>
     ),
 );
 
-function title(mission: MissionSummary): string {
+function title(mission: MissionShort): string {
   return mission.information.name?.trim() || "Untitled mission";
 }
 

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import RetryAlert from "@/components/catalog/RetryAlert.vue";
-import type { SearchHit } from "@/types/api";
+import type { SearchHit } from "@/types/catalog";
 
 const props = defineProps<{
   items: SearchHit[];

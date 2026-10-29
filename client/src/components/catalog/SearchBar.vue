@@ -8,7 +8,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import RetryAlert from "@/components/catalog/RetryAlert.vue";
-import type { Collection } from "@/types/api";
+import type { Collection } from "@/types/catalog";
 
 defineProps<{
   query: string;

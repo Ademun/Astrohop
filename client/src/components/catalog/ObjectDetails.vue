@@ -1,38 +1,14 @@
 <script setup lang="ts">
-import { type Component, computed, ref } from "vue";
-import {
-  Expand,
-  Image as ImageIcon,
-  Ruler,
-  RulerDimensionLine,
-  Sun,
-  Telescope,
-  Thermometer,
-} from "@lucide/vue";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-} from "@/components/ui/empty";
-import { Skeleton } from "@/components/ui/skeleton";
+import {type Component, computed, ref} from "vue";
+import {Expand, Image as ImageIcon, Ruler, RulerDimensionLine, Sun, Telescope, Thermometer,} from "@lucide/vue";
+import {Badge} from "@/components/ui/badge";
+import {Button} from "@/components/ui/button";
+import {Dialog, DialogContent, DialogDescription, DialogTitle,} from "@/components/ui/dialog";
+import {Empty, EmptyDescription, EmptyHeader, EmptyMedia,} from "@/components/ui/empty";
+import {Skeleton} from "@/components/ui/skeleton";
 import RetryAlert from "@/components/catalog/RetryAlert.vue";
-import {
-  formatAngularSize,
-  formatDeclination,
-  formatDistance,
-  formatNumber,
-  formatRightAscension,
-} from "@/lib/format";
-import type { CatalogObject } from "@/types/api";
+import {formatAngularSize, formatDeclination, formatDistance, formatNumber, formatRightAscension,} from "@/lib/format";
+import type {CelestialObject} from "@/types/catalog";
 
 interface Row {
   label: string;
@@ -45,7 +21,7 @@ interface Tile extends Row {
 }
 
 const props = defineProps<{
-  object: CatalogObject | null;
+  object: CelestialObject | null;
   loading: boolean;
   error: string | null;
   fallbackTitle: string | null;
@@ -68,7 +44,7 @@ const tiles = computed<Tile[]>(() => {
   const object = props.object;
   if (!object) return [];
 
-  const { star, dso } = object;
+  const {star, dso} = object;
   const magnitude = star?.visual_mag ?? dso?.visual_mag;
   const result: Tile[] = [];
 
@@ -86,17 +62,17 @@ const tiles = computed<Tile[]>(() => {
       icon: Thermometer,
     });
   }
-  if (dso && (dso.major_axis != null || dso.minor_axis != null)) {
+  if (dso && (dso.major_axis || dso.minor_axis)) {
     result.push({
       label: "Apparent size",
       value: formatAngularSize(dso.major_axis, dso.minor_axis),
       icon: RulerDimensionLine,
     });
   }
-  if (object.distance_pc != null) {
+  if (object.distance) {
     result.push({
       label: "Distance",
-      value: formatDistance(object.distance_pc),
+      value: formatDistance(object.distance),
       icon: Ruler,
       wide: true,
     });
@@ -136,16 +112,16 @@ const reference = computed<Row[]>(() => {
           aria-label="Loading object details"
           class="flex flex-col gap-4"
       >
-        <Skeleton class="h-5 w-1/3" />
-        <Skeleton class="h-7 w-2/3" />
-        <Skeleton class="h-4 w-full" />
+        <Skeleton class="h-5 w-1/3"/>
+        <Skeleton class="h-7 w-2/3"/>
+        <Skeleton class="h-4 w-full"/>
         <div class="grid grid-cols-2 gap-3">
-          <Skeleton class="h-16" />
-          <Skeleton class="h-16" />
+          <Skeleton class="h-16"/>
+          <Skeleton class="h-16"/>
         </div>
       </div>
 
-      <RetryAlert v-else-if="error" :message="error" @retry="emit('retry')" />
+      <RetryAlert v-else-if="error" :message="error" @retry="emit('retry')"/>
 
       <div v-else-if="object" class="flex flex-col gap-6">
         <header class="flex flex-col gap-3">
@@ -179,7 +155,7 @@ const reference = computed<Row[]>(() => {
               class="self-start @md:hidden"
               @click="imageOpen = true"
           >
-            <ImageIcon aria-hidden="true" />
+            <ImageIcon aria-hidden="true"/>
             View image
           </Button>
         </header>
@@ -244,7 +220,7 @@ const reference = computed<Row[]>(() => {
                 aria-hidden="true"
                 class="absolute right-2 top-2 rounded-md bg-black/60 p-1.5 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
             >
-              <Expand class="size-4" />
+              <Expand class="size-4"/>
             </span>
           </button>
         </div>
@@ -267,7 +243,7 @@ const reference = computed<Row[]>(() => {
       <Empty v-else class="border-0">
         <EmptyHeader>
           <EmptyMedia variant="icon">
-            <Telescope aria-hidden="true" />
+            <Telescope aria-hidden="true"/>
           </EmptyMedia>
           <EmptyDescription>Select an object to see its details.</EmptyDescription>
         </EmptyHeader>
